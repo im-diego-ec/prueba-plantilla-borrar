@@ -1,3 +1,39 @@
 {
-  "desvios": []
+  "desvios": [
+    {
+      "aprobado_por": "im-diego-ec",
+      "fecha": "2026-09-03",
+      "regla": "github-review-cruzado-automatizado",
+      "motivo": "El equipo es una sola persona. GitHub pide revision a los duenos del codigo excepto al autor, asi que exigir una aprobacion ajena bloquearia todo merge sin salida. El pull request y la verificacion en verde siguen siendo obligatorios; lo que queda apagado es la aprobacion humana ajena.",
+      "revisar": "cuando entre la segunda persona al proyecto"
+    },
+    {
+      "aprobado_por": "im-diego-ec",
+      "fecha": "2026-09-03",
+      "regla": "iac-es-terraform",
+      "motivo": "La plataforma elegida es \"supabase\" y el andamio solo trae Terraform de AWS. Las cinco claves de AWS del archivo de valores llevan relleno porque una clave vacia se lee como marcador sin resolver y pondria el proyecto en rojo el dia uno. No describen ninguna cuenta real.",
+      "revisar": "cuando el andamio reparta infraestructura segun la plataforma elegida"
+    },
+    {
+      "aprobado_por": "im-diego-ec",
+      "fecha": "2026-09-03",
+      "regla": "alertar-con-origen-preciso",
+      "motivo": "Los avisos van al correo de GitHub. Las dos claves de Slack llevan relleno por el mismo motivo que las de AWS: vacias se leerian como marcador sin resolver.",
+      "revisar": "cuando haya equipo y un canal donde avisarle"
+    },
+    {
+      "aprobado_por": "im-diego-ec",
+      "fecha": "2026-09-03",
+      "regla": "urls-canonicas-por-cors",
+      "motivo": "No hay dominio propio, asi que se anoto la direccion gratuita de Cloudflare Workers `<proyecto>.workers.dev`. LE FALTA EL SUBDOMINIO DE LA CUENTA en el medio (`<proyecto>.<subdominio>.workers.dev`): lo elige la persona al abrir la cuenta y no existe todavia cuando se contesta esta pregunta. Cloudflare imprime la direccion completa en la primera publicacion; hasta entonces el `site:` de Astro apunta a un nombre que no resuelve, lo que afecta los enlaces canonicos del HTML publicado y nada mas.",
+      "revisar": "despues de la primera publicacion, con la direccion que imprime Cloudflare"
+    },
+    {
+      "aprobado_por": "im-diego-ec",
+      "fecha": "2026-09-03",
+      "regla": "promocion-por-ambientes",
+      "motivo": "El andamio no reparte pipeline de promocion: no hay deploy a dev, ni smoke, ni promocion a prod. Lo que viaja hoy es la verificacion (ci.yml) y, solo para la forma «un sitio para leer», una publicacion a UN destino (desplegar.yml). La regla queda escrita como el destino, no como lo que este proyecto hace hoy. Lo mismo vale para `dev-es-staging-compartido`, que describe la misma maquinaria.",
+      "revisar": "cuando el marco reparta el pipeline de promocion, o cuando este proyecto escriba el suyo"
+    }
+  ]
 }

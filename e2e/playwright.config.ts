@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 /**
- * Suite E2E de mi-proyecto: corre contra un ambiente YA DESPLEGADO (dev), no
+ * Suite E2E de prueba-plantilla-borrar: corre contra un ambiente YA DESPLEGADO (dev), no
  * contra localhost, y por eso NO es un paso del CI del PR sino de la promocion
  * — dev en verde es el permiso de prod. Esas son las dos entradas de EXCEPCIONES
  * que .github/workflows/ci.yml declara para este paquete (test y build).

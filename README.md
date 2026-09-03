@@ -1,4 +1,4 @@
-# mi-proyecto
+# prueba-plantilla-borrar
 
 > **Este archivo lo genera la herramienta que creó el repositorio: llega con la estructura
 > puesta y los valores del proyecto ya sustituidos, pero con varios huecos marcados
@@ -100,7 +100,7 @@ Si un PR no se auto-asigna a nadie, el problema no es del PR: es que el equipo n
 permiso de escritura sobre el repositorio, y GitHub no lo reporta. Se comprueba así:
 
 ```bash
-gh api repos/im-diego-ec/mi-proyecto/teams --jq '.[] | "\(.slug): \(.permission)"'
+gh api repos/im-diego-ec/prueba-plantilla-borrar/teams --jq '.[] | "\(.slug): \(.permission)"'
 ```
 
 ## Cómo se verifica un cambio

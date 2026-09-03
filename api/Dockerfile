@@ -1,6 +1,6 @@
 # Imagen del API. SE CONSTRUYE DESDE LA RAIZ DEL MONOREPO, no desde api/:
 #
-#   docker build -f api/Dockerfile -t mi-proyecto-api .
+#   docker build -f api/Dockerfile -t prueba-plantilla-borrar-api .
 #
 # Por que la raiz: en un workspace de pnpm el UNICO lockfile valido es el de la
 # raiz (uno dentro de un paquete hace que local y CI resuelvan distinto, y el
@@ -160,10 +160,10 @@ CMD ["pnpm", "start"]
 # comando exacto que los cierra, desde la RAIZ del repo, con lo que cada uno
 # tiene que contestar:
 #
-#   docker build -f api/Dockerfile -t mi-proyecto-api .
-#   docker run --rm mi-proyecto-api id -un                        # node
-#   docker run --rm mi-proyecto-api pnpm --version                # 11.23.0
-#   docker image inspect mi-proyecto-api | grep '"Architecture"'  # amd64
+#   docker build -f api/Dockerfile -t prueba-plantilla-borrar-api .
+#   docker run --rm prueba-plantilla-borrar-api id -un                        # node
+#   docker run --rm prueba-plantilla-borrar-api pnpm --version                # 11.23.0
+#   docker image inspect prueba-plantilla-borrar-api | grep '"Architecture"'  # amd64
 #
 # Y los dos que cierran lo que este archivo AFIRMA pero no midio:
 #

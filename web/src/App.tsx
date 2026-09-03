@@ -10,7 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 // compilaria ANTES de la sustitucion (la misma leccion que las comillas que
 // ci.yml le pone al suyo para que el YAML parsee). Con el string, el andamio es
 // TSX valido en los dos estados: antes y despues de `projects init`.
-const NOMBRE_DEL_PROYECTO = "mi-proyecto";
+const NOMBRE_DEL_PROYECTO = "prueba-plantilla-borrar";
 
 // La organizacion entra por el MISMO camino y por el mismo motivo de arriba: un
 // marcador suelto entre etiquetas se leeria como objeto literal. Y entra por un

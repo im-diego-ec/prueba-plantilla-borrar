@@ -115,7 +115,7 @@ export function iniciar(opciones: OpcionesDeArranque = {}): Server | undefined {
 
   const puerto = opciones.puerto ?? resolverPuerto();
   const servidor = createApp().listen(puerto, () => {
-    log.info("mi-proyecto-api escuchando", { puerto });
+    log.info("prueba-plantilla-borrar-api escuchando", { puerto });
   });
   registrarApagado(servidor, { salir });
   return servidor;

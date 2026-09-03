@@ -1,4 +1,4 @@
-// [FRONT] Configuracion del frontend de mi-proyecto: build, servidor de dev y
+// [FRONT] Configuracion del frontend de prueba-plantilla-borrar: build, servidor de dev y
 // runner de pruebas. Este paquete ENTERO es el bloque [FRONT] del andamio — un
 // proyecto sin interfaz borra el directorio web/ completo, la linea "web" de
 // pnpm-workspace.yaml y los bloques marcados [FRONT] de eslint.config.mjs.

@@ -1,4 +1,4 @@
-# PostgreSQL local para desarrollar mi-proyecto. Se levanta con:
+# PostgreSQL local para desarrollar prueba-plantilla-borrar. Se levanta con:
 #   docker compose up -d
 #
 # POR QUE EXISTE. El stack fija PostgreSQL via Prisma, y las migraciones se
@@ -21,10 +21,10 @@
 # ni al build.
 #
 # EL NOMBRE DE LA BASE ESTA ACOPLADO al DATABASE_URL de api/.env.example, y por
-# eso los dos lados salen AHORA DEL MISMO MARCADOR: `mi-proyecto` aca y
-# `.../mi-proyecto` alla. Hasta el 2026-08-24 este lado era un literal FIJO y el
+# eso los dos lados salen AHORA DEL MISMO MARCADOR: `prueba-plantilla-borrar` aca y
+# `.../prueba-plantilla-borrar` alla. Hasta el 2026-08-24 este lado era un literal FIJO y el
 # comentario pedia acordarse de cambiar los dos en el mismo commit — y el propio
-# archivo ya incumplia lo que pedia, porque ese literal no era el `mi-proyecto`
+# archivo ya incumplia lo que pedia, porque ese literal no era el `prueba-plantilla-borrar`
 # del otro lado: todo repo nuevo nacia con el contenedor sirviendo una base que
 # su DATABASE_URL no nombra.
 #
@@ -51,7 +51,7 @@ services:
       # MAPA anidado y no como texto (medido con un parser: la clave del mapa
       # resulta ser otro mapa). El archivo no se rompe, se vuelve otra cosa —
       # que es peor, porque no hay error que mirar.
-      POSTGRES_DB: "mi-proyecto"
+      POSTGRES_DB: "prueba-plantilla-borrar"
     ports:
       # El puerto estandar de Postgres. Si otro proyecto del area ya lo tiene
       # tomado en esta maquina, `docker compose up -d` falla con "port is

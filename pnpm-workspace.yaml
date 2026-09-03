@@ -1,4 +1,4 @@
-# LA UNICA declaracion del workspace de mi-proyecto. Vive en la raiz y en
+# LA UNICA declaracion del workspace de prueba-plantilla-borrar. Vive en la raiz y en
 # ningun otro lugar: un pnpm-workspace.yaml dentro de un paquete no declara un
 # workspace anidado, lo unico que hace es que ese directorio resuelva
 # dependencias distinto que la raiz (y el .gitignore del marco ya ignora el

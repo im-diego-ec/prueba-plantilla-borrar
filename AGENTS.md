@@ -1,4 +1,4 @@
-# AGENTS.md — im-diego-ec / mi-proyecto
+# AGENTS.md — im-diego-ec / prueba-plantilla-borrar
 
 > Este archivo es la **constitución de ESTE proyecto** para humanos y para agentes de IA
 > (Claude Code, Cursor). Se carga en **cada sesión** de codificación, y tiene dos mitades:

@@ -1,4 +1,4 @@
-COMANDOS PARA LEVANTAR LOS SERVICIOS - mi-proyecto
+COMANDOS PARA LEVANTAR LOS SERVICIOS - prueba-plantilla-borrar
 ============================================================
 
 POR QUE EXISTE ESTE ARCHIVO. El arranque local es de una sola vez y se olvida:
@@ -78,10 +78,10 @@ CADA DIA
    sistema; las otras dos son las mismas:
 
    [macOS / Linux / Git Bash]
-cd "<la ruta local de tu clon de mi-proyecto>"
+cd "<la ruta local de tu clon de prueba-plantilla-borrar>"
 
    [Windows PowerShell]
-Set-Location "<la ruta local de tu clon de mi-proyecto>"
+Set-Location "<la ruta local de tu clon de prueba-plantilla-borrar>"
 
 docker compose up -d
 pnpm dev

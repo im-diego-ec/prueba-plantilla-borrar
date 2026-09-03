@@ -25,7 +25,7 @@ export function createApp() {
   // Publico: no toca base ni auth. Es lo que mira el health check del
   // balanceador, asi que tiene que seguir respondiendo cuando la base no esta.
   app.get("/api/health", (_req, res) => {
-    res.json({ estado: "ok", servicio: "mi-proyecto-api", ts: new Date().toISOString() });
+    res.json({ estado: "ok", servicio: "prueba-plantilla-borrar-api", ts: new Date().toISOString() });
   });
 
   // Protegido: la identidad sale de los claims firmados del token, nunca del

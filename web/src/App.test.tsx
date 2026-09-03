@@ -41,7 +41,7 @@ function authFalsa(sesionInicial: Sesion | null = null, token: string | null = n
 // inventados— no podia leer al backend real sin que nada mordiera. El acople
 // entre estos dobles, los esquemas de App.tsx y los `res.json` de app.ts lo
 // vigila pruebas/andamio/acoples-del-andamio.test.mjs.
-const SALUD_OK = { estado: "ok", servicio: "mi-proyecto-api", ts: "2026-01-01T00:00:00.000Z" };
+const SALUD_OK = { estado: "ok", servicio: "prueba-plantilla-borrar-api", ts: "2026-01-01T00:00:00.000Z" };
 const HOLA_OK = { mensaje: "Hola desde el API", userId: "dev-user" };
 // El saludo que devuelve el API cuando el token SI viajo: el userId sale de los
 // claims firmados, no del "dev-user" que inventa el bypass de desarrollo.

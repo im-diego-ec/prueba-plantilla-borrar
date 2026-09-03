@@ -1,4 +1,4 @@
-# Protección de `main` en mi-proyecto — estado real y cómo aplicarla
+# Protección de `main` en prueba-plantilla-borrar — estado real y cómo aplicarla
 
 La protección de la rama de integración es un **acto humano deliberado**: nunca
 se aplica desde el pipeline (un workflow con permiso para editar su propia
@@ -6,11 +6,11 @@ protección puede quitarla). Este documento es su **estado real** — el marco
 exige que exista y que se actualice en el mismo cambio que modifique la
 configuración.
 
-### ⚪ No se pudo medir: GitHub no conoce (todavía) a `im-diego-ec/mi-proyecto` — intentado el 2026-09-03
+### ⚪ No se pudo medir: `gh` no está autenticado — intentado el 2026-09-03
 
 ```
-$ gh api repos/im-diego-ec/mi-proyecto/rulesets
-→ Not Found
+$ gh api repos/im-diego-ec/prueba-plantilla-borrar/rulesets
+→ gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable. Example:
 ```
 
 **«No pude mirar» no es «no hay problema».** Esta herramienta no llegó a ver este
@@ -18,9 +18,7 @@ repositorio, así que **no afirma nada** sobre su protección de rama: ni que la
 que pueda tenerla. Hasta que la sonda conteste, el estado de la protección de `main` acá es
 **desconocido**, y así hay que escribirlo en cualquier informe.
 
-Lo más probable es que el repositorio todavía no exista: `projects init` corre **antes** del
-primer push. También puede ser que el nombre no sea ese, o que la cuenta autenticada no lo
-vea. Volvé a correr la sonda de arriba después del push fundacional.
+Corré `gh auth login` y después la sonda de arriba.
 
 Y hay una respuesta concreta que conviene tener leída de antemano, porque el paso a paso no la
 contemplaba. Si la sonda contesta
@@ -100,9 +98,9 @@ merging`. Marcarlas ahora es el auto-encierro que advierte la nota ⚠️ de má
 ## Contrastar lo escrito contra la configuración real
 
 ```bash
-gh api repos/im-diego-ec/mi-proyecto/rulesets --jq '.[] | "\(.id)  \(.name)  \(.enforcement)"'
-gh api repos/im-diego-ec/mi-proyecto/rulesets/<id> --jq '.rules[] | .type'
-gh api repos/im-diego-ec/mi-proyecto/rulesets/<id> --jq '.bypass_actors'
+gh api repos/im-diego-ec/prueba-plantilla-borrar/rulesets --jq '.[] | "\(.id)  \(.name)  \(.enforcement)"'
+gh api repos/im-diego-ec/prueba-plantilla-borrar/rulesets/<id> --jq '.rules[] | .type'
+gh api repos/im-diego-ec/prueba-plantilla-borrar/rulesets/<id> --jq '.bypass_actors'
 ```
 
 Si la salida no coincide con la tabla, manda la salida: el documento está

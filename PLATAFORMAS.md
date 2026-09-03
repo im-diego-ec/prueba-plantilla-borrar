@@ -1,4 +1,4 @@
-# Adaptadores de plataforma — mi-proyecto
+# Adaptadores de plataforma — prueba-plantilla-borrar
 
 El marco **no elige la nube**. Lo que fija son **cuatro capacidades**; quién se las da a
 este proyecto es una decisión de este proyecto, y se escribe acá.
@@ -267,7 +267,7 @@ elige AWS para no gastar descubre el gasto cuando la promoción termina.
   `skills-antes-de-tarea-aws` y `sin-em-dashes-en-recursos-aws`, que la constitución enuncia
   sin proveedor porque valen para todos—:
   - la lectura del estado va por la CLI del proveedor con los perfiles que el repo ya
-    permite (`sin-aws`, `sin-aws`): `terraform validate`, `terraform plan`,
+    permite (`sin-aws-dev`, `sin-aws-prod`): `terraform validate`, `terraform plan`,
     los `describe-*` y las consultas de logs. Un servidor MCP del proveedor es
     configuración personal de cada máquina, no un supuesto del repositorio.
   - antes de una tarea de este proveedor, revisar si hay una skill que aplique y cargarla;

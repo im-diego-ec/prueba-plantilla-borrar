@@ -1,10 +1,10 @@
 <!-- projects:constitucion version=1.7.0 sha=22d439df187b superficie=claude-code -->
 
-# La porción del marco · im-diego-ec / mi-proyecto
+# La porción del marco · im-diego-ec / prueba-plantilla-borrar
 
 > Reglas de ingeniería del área que valen para **cualquier** proyecto. Este archivo
 > lo escribe **Projects** y llega renderizado a este repositorio; lo propio de
-> mi-proyecto vive en su `AGENTS.md`.
+> prueba-plantilla-borrar vive en su `AGENTS.md`.
 >
 > Regla de oro: **el spec es la fuente de verdad; el código es el artefacto generado
 > y verificable.**
@@ -13,12 +13,12 @@
 
 - **Esto no se edita acá.** Una edición a mano pone rojo el pipeline en la corrida
   siguiente y se pierde en la regeneración, sin dejar rastro. Si el texto está mal,
-  se arregla en Projects y llega a todos; si está bien pero no aplica a mi-proyecto, se
+  se arregla en Projects y llega a todos; si está bien pero no aplica a prueba-plantilla-borrar, se
   declara un desvío (abajo).
 
 <!-- projects:regla id=precedencia-del-marco -->
 
-- **Precedencia.** Si el `AGENTS.md` de mi-proyecto y este archivo dicen cosas
+- **Precedencia.** Si el `AGENTS.md` de prueba-plantilla-borrar y este archivo dicen cosas
   distintas sobre lo mismo, **manda este archivo**. El único override válido es un
   **desvío declarado** en `.projects-desvios.json`: nombra la regla, quién lo aprobó y
   el motivo escrito, y queda impreso acá mismo, pegado a la regla que anula. Una
@@ -27,7 +27,7 @@
 
 <!-- projects:regla id=el-proyecto-no-edita-el-marco -->
 
-- **mi-proyecto no edita el marco desde su repo.** Lo que falta es un parámetro o
+- **prueba-plantilla-borrar no edita el marco desde su repo.** Lo que falta es un parámetro o
   es un change de OpenSpec **en Projects**. Copiar un workflow del marco para editarlo
   acá, o pinar una versión vieja para ganar tiempo, rompen la propiedad que hace útil
   al marco: que un arreglo llegue a todos.
@@ -119,7 +119,7 @@ im-diego-ec**.
 
 <!-- projects:regla id=leccion-de-incidente-sube-al-marco -->
 
-- **La lección de un incidente no se queda acá.** Un post-mortem de mi-proyecto que
+- **La lección de un incidente no se queda acá.** Un post-mortem de prueba-plantilla-borrar que
   deja una lección accionable se propone como change **en Projects**, en frío, dentro de
   las 48 horas: un guardrail que solo protege al repo donde ardió es trabajo a
   medias. Si no se puede generalizar, se escribe la razón. "No se pudo" es una
@@ -229,10 +229,10 @@ enrojeció un repo que el día anterior pasaba, y nadie lo había pedido.
 
 |            | dev (staging)               | producción                   |
 | ---------- | --------------------------- | ---------------------------- |
-| Frontend   | https://mi-proyecto.workers.dev     | https://mi-proyecto.workers.dev     |
-| API        | https://api.mi-proyecto.workers.dev | https://api.mi-proyecto.workers.dev |
+| Frontend   | https://prueba-plantilla-borrar.workers.dev     | https://prueba-plantilla-borrar.workers.dev     |
+| API        | https://api.prueba-plantilla-borrar.workers.dev | https://api.prueba-plantilla-borrar.workers.dev |
 | Cuenta AWS | 000000000000              | 000000000000              |
-| Perfil CLI | `sin-aws`            | `sin-aws`            |
+| Perfil CLI | `sin-aws-dev`            | `sin-aws-prod`            |
 | Región     | us-east-1                  | us-east-1                   |
 
 <!-- projects:regla id=urls-canonicas-por-cors -->
@@ -512,7 +512,7 @@ enrojeció un repo que el día anterior pasaba, y nadie lo había pedido.
   copia al build.** Es la capacidad (c) y la lección más cara del marco: el 2026-07-27 una
   credencial rotativa capturada como variable de entorno del deploy tiró una aplicación. Un
   secreto copiado al build es una caída con fecha. El nombre es el mismo en toda plataforma
-  —`/mi-proyecto/<env>/<NOMBRE>`— y qué almacén lo implementa lo dice el adaptador.
+  —`/prueba-plantilla-bor/<env>/<NOMBRE>`— y qué almacén lo implementa lo dice el adaptador.
   Ningún adaptador negocia estas dos: el valor **no entra al estado de la IaC**, y a la base se
   entra con identidad, no con contraseña.
 
