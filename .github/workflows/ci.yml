@@ -47,7 +47,7 @@ jobs:
     #
     # Entre comillas a proposito: sin ellas, el placeholder de doble llave hace
     # que YAML lea un mapa en flujo y el archivo no parsea antes de sustituirlo.
-    uses: "im-diego-ec/Projects/.github/workflows/marco-ci.yml@v1.8.0"
+    uses: "im-diego-ec/Projects/.github/workflows/marco-ci.yml@v1.9.4"
     # EL TECHO QUE SE LE CONCEDE AL REUSABLE, y por eso no es una repeticion
     # decorativa del bloque de arriba: un workflow reusable no recibe NUNCA mas
     # permisos que los que le da quien lo llama, asi que esta es la linea que de
@@ -112,7 +112,7 @@ jobs:
         with:
           node-version: "24"
       - id: marco_constitucion
-        uses: "im-diego-ec/Projects/actions/constitucion@v1.8.0"
+        uses: "im-diego-ec/Projects/actions/constitucion@v1.9.4"
         with:
           modo: verificar
       # El artefacto AL DIA se sube SIEMPRE, tambien cuando el veredicto es verde:
@@ -532,7 +532,7 @@ jobs:
       # de SU paquete, bajo projects.cobertura.excluidos, con su motivo escrito.
       # La exclusion no vuelve imposible la evasion: la vuelve visible, en un
       # diff, bajo review.
-      - uses: "im-diego-ec/Projects/actions/censo-fuentes@v1.8.0"
+      - uses: "im-diego-ec/Projects/actions/censo-fuentes@v1.9.4"
 
       # Cobertura en los DOS planos, en un solo paso, porque los dos leen los
       # mismos lcov y los mismos manifiestos:
@@ -568,7 +568,7 @@ jobs:
       # reporter lcov en la raiz del monorepo. Las dos cosas vienen armadas en
       # `vitest.config.base.mjs` de la raiz: lo primero es su `include` — la
       # opcion `all` que lo pedia en vitest 2.x ya no existe.
-      - uses: "im-diego-ec/Projects/actions/cobertura-diff@v1.8.0"
+      - uses: "im-diego-ec/Projects/actions/cobertura-diff@v1.9.4"
 
   # EL CHECK REQUERIDO POR EL RULESET DE main ES ESTE (nombre exacto: "ci-ok").
   #
