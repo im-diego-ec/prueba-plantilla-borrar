@@ -1,0 +1,31 @@
+{
+  "superficies": [
+    "claude-code",
+    "cursor"
+  ],
+  "plataforma": "supabase",
+  "PROYECTO": "mi-proyecto",
+  "ORG": "im-diego-ec",
+  "ORG_MARCO": "im-diego-ec",
+  "PAQUETE_API": "api",
+  "PAQUETE_WEB": "web",
+  "PAQUETE_SITIO": "sitio",
+  "PAQUETE_E2E": "e2e",
+  "GENERAR_CLIENTE_DATOS": "prisma generate",
+  "EQUIPO_BUILDERS": "builders",
+  "EQUIPO_PO": "po",
+  "BUILDER_1": "im-diego-ec",
+  "BUILDER_2": "im-diego-ec",
+  "PO": "im-diego-ec",
+  "CUENTA_DEV": "000000000000",
+  "CUENTA_PROD": "000000000000",
+  "REGION": "us-east-1",
+  "PERFIL_DEV": "sin-aws",
+  "PERFIL_PROD": "sin-aws",
+  "PREFIJO_RECURSOS": "mi-proyecto",
+  "DOMINIO_DEV": "mi-proyecto.workers.dev",
+  "DOMINIO_PROD": "mi-proyecto.workers.dev",
+  "CANAL_ALERTAS": "#sin-slack",
+  "ID_MCP_SLACK": "00000000-0000-0000-0000-000000000000",
+  "forma": "aplicacion"
+}

@@ -1,0 +1,37 @@
+/* [FRONT] LA HOJA DE ESTILOS ES LA CONFIGURACION.
+ *
+ * Tailwind 4 movio la configuracion del JavaScript al CSS: ya no hay
+ * `tailwind.config.js` ni `postcss.config.js` en este paquete, y tampoco hace
+ * falta `autoprefixer` (el motor nuevo ya emite los prefijos que hagan falta).
+ * El pipeline entero lo cablea el plugin `@tailwindcss/vite` de vite.config.ts.
+ *
+ * Las tres directivas `@tailwind base/components/utilities` de Tailwind 3 se
+ * reemplazan por UN import. No es un alias: el import trae tambien la capa de
+ * `@theme` con los tokens por defecto, que es lo que hace posible el bloque de
+ * abajo.
+ *
+ * QUE ARCHIVOS SE ESCANEAN. En Tailwind 3 lo declaraba `content: [...]`; en 4
+ * la deteccion es automatica desde la raiz del paquete, respetando .gitignore y
+ * salteando binarios. Si algun dia hay que mirar clases que viven FUERA de este
+ * paquete (una libreria de componentes compartida), la forma de agregarlas es
+ * `@source "../ruta"`, aca mismo — no volver a un archivo de configuracion.
+ *
+ * ADAPTAR AL PROYECTO: este es el UNICO lugar del repo donde los valores de
+ * marca se escriben a mano; el resto del codigo los consume como tokens (el
+ * linter del marco pone en rojo un hex suelto en el JSX, ver eslint.config.mjs).
+ * Al extender el tema, los valores salen del sistema de diseno del area, no de
+ * la vista. Que COINCIDAN con los del sistema no lo puede decidir un linter:
+ * eso lo verifica la revision de artefactos.
+ */
+@import "tailwindcss";
+
+@theme {
+  /* Vacio a proposito: el andamio no inventa una paleta. Los tokens propios se
+   * declaran aca con la forma `--color-<nombre>: <valor>`, y desde ese momento
+   * existen como clases (`bg-<nombre>`, `text-<nombre>`) sin tocar nada mas.
+   * Ejemplo de la forma, NO de los valores de ninguna marca:
+   *
+   *   --color-acento: oklch(0.68 0.19 45);
+   *   --font-display: "…", ui-sans-serif, system-ui, sans-serif;
+   */
+}

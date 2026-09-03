@@ -1,0 +1,50 @@
+{
+  "name": "api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "prisma generate && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --coverage",
+    "lint": "eslint . --max-warnings=0",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jose": "^6.2.10",
+    "pg": "^8.23.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.3.0",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "prisma": "^7.9.1",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  },
+  "projects": {
+    "cobertura": {
+      "excluidos": [
+        {
+          "patron": "vitest.config.ts",
+          "motivo": "Configuracion del propio corredor de pruebas: la ejecuta vitest al arrancar, ninguna suite puede importarla para medirla, y el analizador la ignora por el patron '**/*.config.ts' de eslint.config.mjs. Queda fuera de la medicion, no de la revision: es una linea de diff bajo review como cualquier otra."
+        },
+        {
+          "patron": "prisma.config.ts",
+          "motivo": "Configuracion de la CLI de datos: la lee 'prisma' fuera del proceso del API (migrate, generate), asi que no hay ejecucion bajo pruebas que medir, y el analizador la ignora por el mismo patron '**/*.config.ts'. Si algun dia la importa codigo de src/, esta exclusion sobra y hay que borrarla."
+        }
+      ]
+    }
+  }
+}

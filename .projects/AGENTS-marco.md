@@ -1,0 +1,699 @@
+<!-- projects:constitucion version=1.7.0 sha=22d439df187b superficie=claude-code -->
+
+# La porción del marco · im-diego-ec / mi-proyecto
+
+> Reglas de ingeniería del área que valen para **cualquier** proyecto. Este archivo
+> lo escribe **Projects** y llega renderizado a este repositorio; lo propio de
+> mi-proyecto vive en su `AGENTS.md`.
+>
+> Regla de oro: **el spec es la fuente de verdad; el código es el artefacto generado
+> y verificable.**
+
+<!-- projects:regla id=artefacto-no-se-edita-a-mano -->
+
+- **Esto no se edita acá.** Una edición a mano pone rojo el pipeline en la corrida
+  siguiente y se pierde en la regeneración, sin dejar rastro. Si el texto está mal,
+  se arregla en Projects y llega a todos; si está bien pero no aplica a mi-proyecto, se
+  declara un desvío (abajo).
+
+<!-- projects:regla id=precedencia-del-marco -->
+
+- **Precedencia.** Si el `AGENTS.md` de mi-proyecto y este archivo dicen cosas
+  distintas sobre lo mismo, **manda este archivo**. El único override válido es un
+  **desvío declarado** en `.projects-desvios.json`: nombra la regla, quién lo aprobó y
+  el motivo escrito, y queda impreso acá mismo, pegado a la regla que anula. Una
+  contradicción sin desvío es un defecto del repositorio: se arregla borrando la
+  copia divergente, no eligiendo cuál leer.
+
+<!-- projects:regla id=el-proyecto-no-edita-el-marco -->
+
+- **mi-proyecto no edita el marco desde su repo.** Lo que falta es un parámetro o
+  es un change de OpenSpec **en Projects**. Copiar un workflow del marco para editarlo
+  acá, o pinar una versión vieja para ganar tiempo, rompen la propiedad que hace útil
+  al marco: que un arreglo llegue a todos.
+
+---
+
+## Cómo trabajamos: OpenSpec
+
+La fuente de verdad del comportamiento es **`openspec/`**.
+
+<!-- projects:regla id=openspec-roles -->
+
+**Roles**: **im-diego-ec es el PO** — dueño del _qué_ y el _por qué_ (proposal y specs,
+con los scenarios en lenguaje de negocio). **im-diego-ec y im-diego-ec son
+builders** — dueños del _cómo_ (design, tasks, implementación), con review cruzado
+entre ellos: el builder que no escribió, revisa. Independiente del rol, la regla
+operativa se mantiene: **toda escritura en producción exige el OK explícito de
+im-diego-ec**.
+
+<!-- projects:regla id=openspec-flujo -->
+
+1. **Proposal** → por qué y qué cambia. **Aprueba im-diego-ec (PO)**.
+2. **Specs** → deltas con `#### Scenario:` (ADDED/MODIFIED/REMOVED), en lenguaje de
+   negocio. **Aprueba im-diego-ec (PO)**.
+3. **Design** → decisiones con alternativas descartadas. Lo escribe un builder; **lo
+   revisa el otro** (gate técnico).
+4. **Tasks** → bloques ejecutables con evidencia. Al aprobarse: sub-issues por bloque
+   colgados del issue macro.
+5. **Implementar** → TDD (rojo evidenciado en LOCAL), un PR por bloque, **review
+   cruzado entre builders** de cada diff.
+6. **Verify + archive** → el change cierra solo cuando los specs vivos validan
+   `--strict` y las tareas tienen evidencia; el PR final cierra el issue macro vía
+   `Closes`.
+
+<!-- projects:regla id=openspec-validar-tras-editar -->
+
+- Tras editar CUALQUIER archivo de `openspec/`: `openspec validate --strict` **más**
+  relectura de coherencia entre proposal/specs/design/tasks antes de commitear.
+  **Lo que el CI ya caza solo** y no hay que revisar a mano: un delta `MODIFIED` que
+  no reproduce todos los escenarios vigentes del requirement, y uno cuyo **título** no
+  existe en el spec vivo —que al archivar se agregaría como requirement nuevo, sin
+  reemplazar nada. Las dos las cierra el guardrail de deltas, con las salidas
+  legítimas escritas en el mensaje (moverlo a `ADDED`, o declarar el retitulado en
+  `RENAMED`).
+  **Lo que ninguna herramienta ve**, y por eso la relectura sigue siendo obligatoria:
+  el guardrail compara el delta contra el spec vivo, así que solo dice la verdad
+  ANTES del archive —corrido después sale verde porque el spec vivo ya es el delta— y
+  el archive cuenta las operaciones **declaradas**, no los cambios efectivos: un
+  `MODIFIED` que repite el título con el cuerpo vacío sale «1 operación aplicada» y
+  deja el requirement sin un solo escenario.
+
+<!-- projects:regla id=openspec-ciclo-de-vida -->
+
+**El ciclo de vida de los specs** (modelo mental, en analogía git):
+
+- `openspec/specs/` = **el contrato vigente** ("main"): lo que el sistema garantiza
+  HOY. Documentos completos y autónomos; CI los valida `--strict` en cada PR. Para
+  saber cómo se comporta algo, se lee AQUÍ.
+- `openspec/changes/<nombre>/specs/` = **deltas** ("el diff del PR"): propuestas
+  ADDED/MODIFIED/REMOVED contra los specs vivos. Solo existen mientras el change está
+  activo.
+- `openspec archive` = **el merge**: funde los deltas en los specs vivos (una
+  capability nueva NACE ahí; una existente se actualiza) y mueve el change a
+  `changes/archive/` como historia inmutable. Tras archivar, nadie lee el delta para
+  entender el sistema — lee el spec vivo; el archive responde "por qué quedó así".
+- ⚠️ Gotcha del CLI: una capability creada por archive nace con `Purpose: TBD` —
+  completarlo en el MISMO PR del archive, no dejarlo.
+
+<!-- projects:regla id=openspec-change-o-pr-directo -->
+
+**¿Change de OpenSpec o PR directo?** La pregunta diaria del builder:
+
+- **Change de OpenSpec** cuando cambia el COMPORTAMIENTO o un contrato: feature
+  nueva, regla de negocio, contrato de API o schema de datos, topología del pipeline,
+  cualquier cosa que un spec vivo tendría que describir distinto después del merge.
+- **PR directo** (con test y su issue si existe) cuando se RESTITUYE comportamiento
+  ya especificado o no se toca comportamiento: bugfix contra un scenario existente,
+  dependencias (salvo majors de auth o del runtime), refactor sin cambio observable,
+  docs, tooling.
+- Duda = pregunta corta al PO o al builder par en el PR. Regla de olfato: si el PR
+  necesitaría explicar una DECISIÓN (no solo un arreglo), era un change.
+
+<!-- projects:regla id=openspec-archive-es-el-changelog -->
+
+- El **archive de OpenSpec ES el changelog** del proyecto — no se mantiene un
+  `CHANGELOG.md` aparte. Las decisiones estructurales viven como ADRs en `docs/adr/`;
+  los incidentes dejan post-mortem en `docs/postmortems/` (48h, sin culpas) y lo
+  operativo del "qué hago cuando suena la alarma" vive en `docs/runbooks/`.
+
+<!-- projects:regla id=leccion-de-incidente-sube-al-marco -->
+
+- **La lección de un incidente no se queda acá.** Un post-mortem de mi-proyecto que
+  deja una lección accionable se propone como change **en Projects**, en frío, dentro de
+  las 48 horas: un guardrail que solo protege al repo donde ardió es trabajo a
+  medias. Si no se puede generalizar, se escribe la razón. "No se pudo" es una
+  conclusión válida; "no lo intentamos", no.
+
+---
+
+## Cuando el marco publica una versión
+
+Este repo consume Projects por `uses: im-diego-ec/Projects/...@vX.Y.Z`, **por versión
+exacta**. Cada versión nueva llega como **PR de Dependabot en este repo**: nada
+del marco cambia acá sin que exista un PR que alguien pueda leer y mergear. Si un
+check nuevo pone este repo en rojo, el rojo aparece **dentro de ese PR** y no en
+`main`.
+
+Hasta Projects 1.3.0 el canal era el tag móvil `v1`, que empujaba el cambio a todos a
+la vez sin que nadie tocara una línea. Cambió porque el 2026-08-19 un check nuevo
+enrojeció un repo que el día anterior pasaba, y nadie lo había pedido.
+
+<!-- projects:regla id=marco-aviso-canal -->
+
+- **El PR de bump del marco no se deja envejecer.** Es el canal: si no llega, este
+  repo se queda en una versión vieja sin enterarse. Dos cosas lo silencian y las dos
+  se revisan acá: que Dependabot tenga acceso al repo del marco, y que el marco esté
+  en **su propio grupo** de `.github/dependabot.yml` — compartiendo el grupo `*` con
+  las demás actions, un PR del grupo trabado deja de proponer el bump. Si el canal
+  está roto, se le pide el acceso a im-diego-ec.
+
+<!-- projects:regla id=marco-aviso-se-vuelve-issue -->
+
+- **Un bump con acción requerida se convierte en issue de este repo el mismo día.**
+  La sección «Para consumidores» del CHANGELOG dice qué hay que hacer; si dice algo,
+  se anota. Un PR leído y no anotado es un rojo esperando al próximo PR de
+  cualquiera, y quien lo cobre no va a ser quien lo leyó.
+
+<!-- projects:regla id=marco-aviso-no-es-la-fuente -->
+
+- **El PR es la notificación, no la fuente.** Ante cualquier duda manda el
+  `CHANGELOG.md` de Projects en la versión publicada, y su sección «Para consumidores».
+  Un bump marcado BREAKING se escala en Projects el mismo día en vez de trabajar
+  alrededor.
+
+<!-- projects:regla id=marco-no-se-copia-ni-se-pina-para-ganar-tiempo -->
+
+- **Lo que NO se hace** cuando un check nuevo molesta: copiar el workflow del marco a
+  este repo para editarlo, ni **quedarse** en una versión vieja para ganar tiempo. Pinar
+  la versión exacta es el modelo; congelarla indefinidamente para no leer un rojo es
+  otra cosa, y rompe la propiedad que hace útil al marco (un arreglo llega a todos los
+  repos, cada uno por su PR). Se abre issue o change **en Projects**.
+
+<!-- projects:regla id=marco-artefacto-al-dia -->
+
+- **La porción del marco se regenera y hay que dejarla llegar.** Si este repo cableó
+  el workflow que la regenera, su PR se revisa y se mergea; no se cierra "para
+  después". Si no lo cableó, la regeneración es **manual** y el artefacto de la
+  corrida dice cómo — cablearlo es la forma de que deje de depender de que alguien se
+  acuerde. Un artefacto atrasado avisa primero y falla desde la fecha que el propio
+  aviso imprime.
+
+---
+
+## Git y despliegue
+
+<!-- projects:regla id=git-trunk-based -->
+
+- **Trunk-based, una sola rama permanente: `main`.** Las ramas de trabajo (`feat/*`,
+  `chore/*`, `docs/*`) salen SIEMPRE de main actualizado
+  (`checkout main && pull --ff-only && checkout -b`, atómico) y vuelven por PR
+  obligatorio con review. Verificar los commits del PR antes de abrirlo. Se borran al
+  mergear.
+
+<!-- projects:regla id=git-commits-firmados -->
+
+- **Commits firmados** (GPG). CI corre lint (`--max-warnings=0`), typecheck, suites y
+  build; los merges de solo docs van por el carril rápido.
+
+<!-- projects:regla id=git-check-requerido-es-el-veredicto-agregado -->
+
+- **El check requerido del ruleset es el veredicto agregado `ci-ok`**, nunca un job
+  intermedio. Un check que solo reporta en un carril —`build-test`, que en un PR de
+  solo docs queda `skipped` y nunca reporta— bloquea el otro carril para siempre
+  esperando una señal que no llega. Es el error más caro de la migración al marco y ya
+  se cometió una vez: un ruleset vivió una semana pidiendo el check equivocado.
+
+<!-- projects:regla id=promocion-por-ambientes -->
+
+- **Promoción por ambientes**: merge de código → deploy a DEV → smoke API → E2E →
+  deploy a PROD → verificar-prod. Producción no recibe nada que dev no haya
+  verificado; las únicas vías que saltan dev son el rollback por `image_tag` y el
+  dispatch manual de emergencia sobre main.
+
+<!-- projects:regla id=dev-es-staging-compartido -->
+
+- **dev es staging compartido** y los Deploy se serializan (**cola, nunca
+  cancelación**). El 2026-08-13 dos deploys corrieron a la vez sobre dev: las dos
+  corridas salieron **verdes** y aun así dejaron la configuración del ambiente
+  corrupta. Cancelar la corrida en curso deja el ambiente a mitad de camino, que es
+  exactamente el estado que produjo el incidente. Para probar una rama: dispatch
+  manual eligiendo la rama.
+
+<!-- projects:regla id=definicion-de-done -->
+
+- **Done** = spec cumplido · tests verdes · PR revisado · sin secrets · desplegado por
+  la promoción y verificado.
+
+**Ambientes**
+
+|            | dev (staging)               | producción                   |
+| ---------- | --------------------------- | ---------------------------- |
+| Frontend   | https://mi-proyecto.workers.dev     | https://mi-proyecto.workers.dev     |
+| API        | https://api.mi-proyecto.workers.dev | https://api.mi-proyecto.workers.dev |
+| Cuenta AWS | 000000000000              | 000000000000              |
+| Perfil CLI | `sin-aws`            | `sin-aws`            |
+| Región     | us-east-1                  | us-east-1                   |
+
+<!-- projects:regla id=urls-canonicas-por-cors -->
+
+- Usar siempre las URLs canónicas de la tabla: el CORS del API solo permite esos
+  orígenes.
+
+---
+
+## Fronteras de tres niveles
+
+**✅ Siempre (hazlo sin preguntar)**
+
+<!-- projects:regla id=suite-local-antes-del-push -->
+
+- Suite local ANTES de cada push. **CI es la corrida final, no el banco de pruebas.**
+
+<!-- projects:regla id=tests-por-endpoint-y-tdd -->
+
+- Tests para cada endpoint y cada path crítico; TDD con **rojo evidenciado en local**.
+
+<!-- projects:regla id=validar-input-externo -->
+
+- Validar TODO input externo con el validador de schemas del stack (**Zod** salvo que
+  la tabla de stack del proyecto diga otra cosa) antes de usarlo.
+
+<!-- projects:regla id=logging-estructurado -->
+
+- Logging por `api/src/lib/log.ts` (JSON estructurado; `no-console` es
+  error del linter, no advertencia).
+
+<!-- projects:regla id=authz-en-el-backend -->
+
+- Verificar autorización en el backend en cada operación (nunca confiar en el
+  cliente).
+
+<!-- projects:regla id=respetar-stack-y-estructura -->
+
+- Respetar el stack y la estructura de carpetas fijados por el proyecto.
+
+<!-- projects:regla id=ejecutores-con-version-exacta -->
+
+- Si un comando corre por un ejecutor que **descarga** (`npx`, `bunx`, `npm exec`,
+  `pnpm dlx`, `yarn dlx`), escribirlo con el paquete completo y su **versión exacta**.
+  El nombre pelado de un paquete en npm lo puede tener otro: `openspec` a secas es un
+  placeholder ajeno, y `npx --yes openspec ...` lo descarga y lo ejecuta sin
+  preguntar. Cuando el binario ya lo trae una dependencia declarada del repo, la forma
+  correcta es `pnpm exec <comando>`, que lee `node_modules` y falla si no está en vez
+  de salir a buscarlo. El CI del marco lo verifica solo (check _Ejecutores de paquetes
+  pinados_), incluido el allowlist de `.claude/settings.json`.
+
+**⚠️ Pregunta primero (requiere OK humano)**
+
+<!-- projects:regla id=dependencia-nueva -->
+
+- Agregar una dependencia nueva. Para las EXISTENTES la política es fija: Dependabot
+  corre semanal (lunes; npm agrupa minor+patch en un PR, los majors llegan solos).
+  **Minor/patch**: los mergea cualquier builder con la promoción en verde — el
+  pipeline (suite, smoke, E2E) ES la verificación; sin auto-merge (el humano mira el
+  changelog un minuto). **Majors**: nunca sueltos — sesión dedicada con orden de riesgo
+  (devDeps → runtime → auth) y verificación real en dev antes de prod. Un major de una
+  lib de AUTH o del RUNTIME se trata como change de comportamiento.
+
+<!-- projects:regla id=migracion-de-schema -->
+
+- Cambiar el schema de la base (migración). Las migraciones de datos llevan
+  invariantes de **PROPIEDADES**, jamás de cantidades esperadas: un invariante con
+  número esperado aborta migraciones sanas por un falso fallo.
+
+<!-- projects:regla id=terraform-y-config-de-despliegue -->
+
+- Tocar Terraform o config de despliegue.
+
+<!-- projects:regla id=contrato-de-api-existente -->
+
+- Cambiar un contrato de API existente.
+
+<!-- projects:regla id=servicio-externo-nuevo -->
+
+- Integrar cualquier servicio externo nuevo.
+
+<!-- projects:regla id=escalar-modelo-exige-ok-previo -->
+
+- **Escalar a un modelo o a un effort más caro exige OK humano PREVIO**, en esa misma
+  sesión. El default es el barato (ver _Agentes: modelos y effort_) y la escalada no
+  es una decisión del agente: el costo lo paga el área y no aparece en ningún diff, así
+  que la única forma de que se note es pedirlo antes. Un agente que ya está corriendo
+  y cree que necesita más effort lo **dice y espera**; no se reconfigura solo, y
+  tampoco lo autoriza otro agente.
+
+<!-- projects:regla id=config-de-repo-u-organizacion-exige-ok-previo -->
+
+- **Cambiar configuración de un repositorio o de la organización exige OK humano
+  PREVIO**: settings, rulesets y protección de `main`, permisos de Actions, visibilidad,
+  `vars` y `secrets`, webhooks, apps instaladas, equipos y membresías. Vale igual por
+  la interfaz web que por API (`gh api -X PATCH/PUT/POST`, Terraform del provider de
+  GitHub): la configuración de un repo es infraestructura, y un cambio ahí no deja
+  diff que alguien pueda revisar después.
+
+<!-- projects:regla id=apartarse-de-la-infra-base-exige-preguntar-antes -->
+
+- **Apartarse de la infraestructura base fijada se PREGUNTA ANTES de implementar**, no
+  se documenta después. La base es primera opción siempre (ver _Infraestructura_); una
+  alternativa se evalúa como decisión, con su alternativa descartada escrita, y recién
+  entonces se escribe código. Descubrir en el review que el servicio ya está desplegado
+  convierte la decisión en un hecho consumado.
+
+**🛑 Nunca**
+
+<!-- projects:regla id=escribir-en-produccion -->
+
+- **Escribir en producción sin el OK explícito de im-diego-ec en esa sesión** —
+  aplica a `terraform apply`, one-offs, datos y config, aunque parezca inerte.
+
+<!-- projects:regla id=dev-no-contacta-usuarios -->
+
+- **Contactar usuarios reales desde dev**: la instancia dev del proveedor de identidad
+  es **separada** (solo usuarios de prueba) y las integraciones salientes (chat,
+  correo, SMS) corren en sandbox u off — el modo real exige `APP_ENV=prod` como
+  **guard estructural en el código**, no una convención. El 2026-07-28 el scheduler de
+  dev notificó a usuarios reales y cuatro empleados "reservaron" en el ambiente de
+  pruebas: la separación de ambientes por convención no separa nada.
+
+<!-- projects:regla id=secrets-fuera-de-codigo-y-contexto -->
+
+- **Poner secrets en código, contexto o logs.** Viven en el store de secretos de AWS /
+  env del runtime / secrets de Actions; se **verifican donde ya existen**, jamás
+  leyéndolos hacia afuera.
+
+<!-- projects:regla id=la-base-guarda-utc -->
+
+- Guardar tiempos con zona horaria en la base: **la base guarda UTC**; la conversión a
+  la zona local del negocio es de la capa de aplicación.
+
+<!-- projects:regla id=una-sola-base-de-datos -->
+
+- Crear otra base de datos (una sola base por proyecto).
+
+<!-- projects:regla id=sistemas-de-terceros -->
+
+- Escribir en sistemas de terceros (ERP, nómina, facturación) sin compuerta de
+  aprobación explícita.
+
+<!-- projects:regla id=borrado-de-datos-es-logico -->
+
+- Borrar datos sin confirmación humana (las bajas de usuarios son **LÓGICAS**).
+
+<!-- projects:regla id=desplegar-a-mano -->
+
+- Desplegar a mano (solo por el pipeline).
+
+<!-- projects:regla id=inventar-endpoints -->
+
+- Inventar endpoints, tablas o features que no estén en el spec.
+
+<!-- projects:regla id=editar-artefactos-generados -->
+
+- Editar a mano lo que genera una herramienta pinada (skills y comandos del CLI de
+  OpenSpec, esta porción del marco): se regenera, y la edición manual se pierde en la
+  regeneración siguiente sin dejar rastro.
+
+---
+
+## Seguridad y observabilidad
+
+<!-- projects:regla id=auth-token-verificado-offline -->
+
+- **Auth**: el proveedor fijado en el stack. El front usa sus componentes; el API
+  verifica el token **offline** con claims firmados (email/nombre del token, jamás del
+  body; sin claim → **fail-closed**).
+
+<!-- projects:regla id=authz-el-backend-es-la-autoridad -->
+
+- **Authz**: cada request valida permiso sobre el recurso (ownership / rol). El backend
+  es la autoridad; cero lógica de seguridad en el cliente.
+
+<!-- projects:regla id=semantica-de-niveles-de-log -->
+
+- **Logs**: JSON por línea con `requestId` automático (trace del balanceador). Un
+  `[fatal]` mata el proceso; `error` alerta; lo rutinario (auth fallida, integración
+  caída) es `warn`. **La semántica de niveles es un contrato** de verificar-prod y de
+  las alarmas: subir un rutinario a `error` no es prolijidad, es ruido que apaga la
+  alarma real.
+
+<!-- projects:regla id=alertar-con-origen-preciso -->
+
+- **Alertar cuando debe y con el origen preciso** (requestId, versión, línea real vía
+  sourcemaps): equipo chico = diagnóstico en minutos. Las alarmas de producción
+  notifican a #sin-slack.
+
+<!-- projects:regla id=fail-open-ruidoso -->
+
+- **Todo fail-open es ruidoso.** Si una detección falla y el proceso sigue por el
+  camino conservador, tiene que **decirlo** (`::warning::` como mínimo). El 2026-08-05
+  un token sin `pull-requests: read` daba 403, el fail-open lo tapaba en silencio y una
+  función del pipeline no actuó durante una semana: un fail-open silencioso es
+  indistinguible de que la función no exista.
+
+<!-- projects:regla id=auditar-permisos-de-job-nuevo -->
+
+- **Un job nuevo del pipeline se audita acción por acción** contra los permisos de su
+  token/role ANTES del estreno, y declara `permissions` explícitos con el mínimo
+  necesario. Lección repetida **3 veces**: es el conteo lo que hace creíble la regla.
+
+---
+
+## Infraestructura, plataforma y secretos
+
+<!-- projects:regla id=infra-base-fijada -->
+
+- **Lo que el marco fija son CUATRO CAPACIDADES, no un producto**: (a) **dónde corre la API**, (b)
+  **dónde vive la base de datos**, (c) **cómo se resuelven los secretos en el arranque de cada
+  tarea**, y (d) **cómo se despliega y cómo se verifica lo desplegado**. Un proyecto cumple el
+  marco cuando las cuatro tienen dueño escrito; el producto lo elige él. Fijarlo acá era un
+  proveedor disfrazado de invariante: dejaba fuera a quien no puede pagar por hora.
+
+<!-- projects:regla id=plataforma-la-elige-el-proyecto -->
+
+- **La plataforma es un valor del proyecto**: la clave `plataforma` de `.projects-valores.json`,
+  con cinco admitidos —`supabase`, `cloudflare`, `gcp`, `aws` y `ninguna`— y un **adaptador** por
+  cada uno en `infra/adaptadores.md`. **Nace declarando `aws`**: es la única que el andamio
+  reparte ya escrita, o sea de dónde arranca y no una recomendación —su plan gratuito vence—.
+  Cambiarla, o usar una fuera de la lista, es **frontera ⚠️**.
+
+<!-- projects:regla id=ninguna-es-una-respuesta -->
+
+- **`ninguna` es una respuesta legítima y de primera clase**: un proyecto que todavía no despliega
+  **no elige una nube para llenar el hueco**; (a) y (b) las cubre su entorno local y (c) no se
+  relaja. Pero **elegirla es trabajo, no omisión**: ninguna herramienta reparte todavía el andamio
+  según esa clave, así que las raíces de Terraform llegan igual y se borran a mano —el adaptador
+  lista los pasos—. Mientras existan, el CI las exige; borradas, sale `::notice::` y verde.
+
+<!-- projects:regla id=iac-es-terraform -->
+
+- **La infraestructura que exista se declara como código, versionada y revisable**: Terraform es
+  la forma por defecto —`infra/` dev, `infra-prod/` producción— porque el pipeline la verifica sin
+  credenciales (`fmt -check`, `init -backend=false && validate`). Una plataforma cuyo despliegue
+  no pasa por Terraform lo declara **en su adaptador**, no en la cabeza de quien despliega. Nunca
+  se genera una segunda IaC al lado de la primera —ni CDK ni CloudFormation, ni como borrador—.
+  Todo `apply` en producción exige el OK explícito de im-diego-ec.
+
+<!-- projects:regla id=costo-declarado-con-techo -->
+
+- **El costo se declara antes de elegir la plataforma, y tiene techo**: el adaptador escribe qué
+  cubre el plan gratuito, cuándo se sale de él y qué pasa ese día. Un servicio que escala sin
+  límite máximo no está terminado: sin techo, un pico —o un bucle— escala hasta donde aguante la
+  tarjeta y el presupuesto se entera después. Los límites **se verifican contra la página del
+  proveedor y se anotan con su fecha**, jamás de memoria.
+
+<!-- projects:regla id=ante-la-duda-verificar-documentacion -->
+
+- **Ante la duda sobre un detalle de la plataforma** (parámetro, permiso, límite, código de error)
+  se verifica contra documentación en vez de adivinar, y se declara la incertidumbre si no se
+  puede confirmar. **Well-Architected** sigue siendo el marco de referencia: sus preguntas
+  —fiabilidad, costo, seguridad, operación— no son de un proveedor.
+
+<!-- projects:regla id=lectura-de-aws-por-cli -->
+
+- **El estado de la plataforma se lee por su CLI oficial**, con los perfiles que el repo ya
+  permite; un servidor MCP del proveedor es configuración personal de cada máquina, no un supuesto
+  del repositorio.
+
+<!-- projects:regla id=skills-antes-de-tarea-aws -->
+
+- **Antes de una tarea de infraestructura se carga la skill que aplique**, si la hay: su guía
+  manda sobre el conocimiento general, pero **jamás es permiso para cambiar de IaC**.
+
+<!-- projects:regla id=sin-em-dashes-en-recursos-aws -->
+
+- **Sin em dashes en nombres ni descripciones de recursos** (usar guiones): aplica a valores que
+  viajan al proveedor, no a la prosa. Estas tres conservan el sufijo `-aws` en su id porque
+  renombrarlas anularía en silencio los desvíos que ya las nombran.
+
+<!-- projects:regla id=secretos-se-resuelven-en-el-arranque -->
+
+- **Un secreto se resuelve EN EL ARRANQUE DE CADA TAREA, por la identidad del runtime, y jamás se
+  copia al build.** Es la capacidad (c) y la lección más cara del marco: el 2026-07-27 una
+  credencial rotativa capturada como variable de entorno del deploy tiró una aplicación. Un
+  secreto copiado al build es una caída con fecha. El nombre es el mismo en toda plataforma
+  —`/mi-proyecto/<env>/<NOMBRE>`— y qué almacén lo implementa lo dice el adaptador.
+  Ningún adaptador negocia estas dos: el valor **no entra al estado de la IaC**, y a la base se
+  entra con identidad, no con contraseña.
+
+<!-- projects:regla id=el-valor-de-un-secreto-no-entra-al-contexto -->
+
+- **El valor de un secreto jamás entra al contexto del agente**: ningún comando que lo imprima
+  —`get-secret-value`, `get-parameter --with-decryption`, o el equivalente de cada plataforma—. Se
+  verifica que EXISTE y que su consumidor lo resuelve, nunca su valor.
+
+<!-- projects:regla id=crear-o-rotar-secreto-es-tarea-humana -->
+
+- **Crear o rotar un secreto es tarea humana**; en producción, además, exige el OK explícito de
+  im-diego-ec. La matriz de accesos (quién puede qué, bus factor) vive en `docs/accesos.md`.
+
+---
+
+## Agentes: modelos, effort y herramientas
+
+El área implementa con agentes. Dos consecuencias: el costo se decide en cada sesión,
+y **las reglas que el agente lee son el producto** — una regla que no entra al
+contexto no existe.
+
+<!-- projects:regla id=modelo-default-barato -->
+
+- **El default es el barato**: `"model": "sonnet"`, `"effortLevel": "medium"` en la
+  configuración personal (`~/.claude/settings.json`). Cubre implementar bloques con
+  tasks aprobadas, tests, docs y deps, que es la mayoría del trabajo. Los repos del
+  área **no** imponen modelo en su `.claude/settings.json`.
+
+<!-- projects:regla id=escalar-solo-con-ok-previo -->
+
+- **Escalar cuesta y no se decide solo.** Un modelo o un effort más caro exige **OK
+  humano previo** en esa sesión (frontera ⚠️ `escalar-modelo-exige-ok-previo`). Los
+  casos que normalmente lo justifican —diseñar un change, cirugía de pipeline,
+  diagnóstico de un incidente, review adversarial— son razones para **pedirlo**, no
+  autorizaciones que el agente pueda aplicarse a sí mismo. `xhigh` y las corridas de
+  auditoría, igual: se piden.
+
+<!-- projects:regla id=subagentes-baratos -->
+
+- **Subagentes: lo mecánico barato.** Recon, lectura masiva y recolección van en
+  `model: sonnet` + `effort: low`; solo los verificadores llevan effort alto. Un
+  subagente hereda el modelo con el que se lo lanza y **no lo cambia**: la escalada de
+  un subagente es una escalada, con la misma compuerta.
+
+<!-- projects:regla id=bot-de-github-acotado -->
+
+- **El bot de GitHub corre acotado y por configuración**: `sonnet`, `medium`,
+  `max-turns 5` en su workflow. El límite vive en el archivo, no en la buena voluntad
+  del que lo invoca.
+
+<!-- projects:regla id=fast-no-se-usa -->
+
+- **`/fast` no se usa.** Es el modelo premium a precio premium ($10/$50 vs $3/$15 por
+  MTok): paga velocidad que este trabajo no necesita.
+
+<!-- projects:regla id=la-palanca-real-no-es-de-config -->
+
+- **La palanca grande no es de config**: sesiones acotadas por bloque, este archivo
+  como contexto compartido, memoria persistente y el carril de docs. Un modelo más
+  caro no arregla una sesión sin foco.
+
+<!-- projects:regla id=fin-de-linea-lf -->
+
+- **Fin de línea LF en todo lo versionado** (`* text=auto eol=lf` en
+  `.gitattributes`). Sin eso, en Windows el árbol de trabajo queda con CRLF mientras
+  los blobs son LF, y las comparaciones byte a byte —incluida la de esta porción del
+  marco— fallan por un motivo que no es el suyo.
+
+<!-- projects:regla id=lo-generado-fuera-del-formateador -->
+
+- **Lo generado queda fuera del formateador** (`.prettierignore`): los artefactos del
+  CLI de OpenSpec, el archive de OpenSpec y `.projects/`. Formatear lo que una herramienta
+  regenera produce un rojo permanente sobre archivos que ninguna persona escribió ni
+  puede arreglar.
+
+---
+
+## GitHub: branches, issues, PRs, Projects
+
+<!-- projects:regla id=github-branches -->
+
+- **Branches**: `feat/*`, `chore/*`, `docs/*` — SIEMPRE desde main actualizado,
+  atómico. Se borran al mergear.
+
+<!-- projects:regla id=github-issues-macro-y-sub-issues -->
+
+- **Issues**: los pendientes macro son issues en el Project del área; los hijos
+  (sub-issues por tarea o bloque) NO van al board. Para changes de OpenSpec, los
+  sub-issues nacen recién con el `tasks.md` aprobado, uno por bloque.
+
+<!-- projects:regla id=github-review-cruzado-automatizado -->
+
+- **Review cruzado AUTOMATIZADO**: `.github/CODEOWNERS` tiene a AMBOS builders como
+  owners de todo — GitHub solicita review a los owners que NO son el autor, así que el
+  par queda asignado solo. El enforcement duro vive en el ruleset de `main`: 1
+  aprobación requerida + review de code owner + firmas requeridas, con `ci-ok` como
+  único check requerido. Su estado REAL y los pasos para aplicarlo viven en
+  `.github/proteccion-main.md`, y se actualizan en el mismo PR que cambie la
+  configuración. La última regla de CODEOWNERS le da al PO la propiedad de proposals y
+  specs: ahí su aprobación ES el gate y ningún builder puede satisfacerlo por él.
+
+<!-- projects:regla id=github-closes-desde-la-creacion -->
+
+- **PR ↔ issue, obligatorio y verificable**: todo PR de bloque lleva
+  `Closes #<sub-issue>` en el body **desde su creación** (la relación bloque↔PR es
+  1:1) — es lo ÚNICO que crea el enlace en la sección Development de ambos lados; un
+  "ref #N" en texto plano NO enlaza nada. Error cometido y corregido el 2026-08-13,
+  cazado en review y no por ninguna herramienta. La evidencia del bloque va como
+  comentario en el sub-issue ANTES del merge; el merge lo cierra solo — no se cierran
+  sub-issues a mano.
+
+<!-- projects:regla id=github-closes-apunta-al-sub-issue -->
+
+- `Closes` apunta solo al sub-issue 1:1; el issue macro del change lo cierra
+  únicamente el PR final del change.
+
+<!-- projects:regla id=github-labels -->
+
+- **Labels** de dos dimensiones: el campo Type para la naturaleza; `area:*` para el
+  dominio. Sin milestones (deploy continuo).
+
+---
+
+## Identidad visual y el idioma del producto
+
+Las aplicaciones del área son mayormente interfaz, así que la marca es parte del
+contrato. El manual completo —tokens, componentes, tipografía, data viz— es la skill
+**`la organización-design`** de la organización. Acá viven solo las reglas que un agente tiene
+que conocer **sin haber invocado nada**.
+
+<!-- projects:regla id=marca-idioma-castellano -->
+
+- **El área trabaja en castellano**, y eso incluye lo que un agente escribe: interfaz,
+  errores, documentos. Las reglas de redacción de abajo son específicas del castellano,
+  así que el idioma es la precondición del resto. Una herramienta que se instale en un
+  proyecto se configura en castellano **al instalarla**. Otro idioma se declara como
+  desvío, con su motivo.
+
+<!-- projects:regla id=marca-texto-oscuro-sobre-acento -->
+
+- **Texto oscuro sobre el naranja de marca, nunca blanco.** El blanco da 2.9:1 y **falla
+  WCAG AA**; el oscuro da 6.7:1. Es la más fácil de romper sin darse cuenta —el blanco
+  «se ve bien»— y la que más veces se rompió: cinco casos en el un consumidor al 2026-08-22, uno en la variante primaria de su botón, o sea en toda la
+  aplicación.
+
+<!-- projects:regla id=marca-solo-tokens -->
+
+- **Solo tokens: cero colores, medidas o z-index a mano.** Un literal no es un atajo: es
+  un valor que nadie va a poder cambiar cuando la marca cambie, y que ningún check
+  distingue de un error de tipeo. El único lugar donde los valores se escriben es la
+  configuración de estilos del proyecto, y ahí tienen que coincidir con los del sistema.
+
+<!-- projects:regla id=marca-el-logo-no-se-redibuja -->
+
+- **El logo y la Estrella de la organización no se redibujan.** Se usan los archivos del sistema o
+  su componente. Un SVG hecho a mano «que se parece» es otra marca con el mismo nombre:
+  pasó tres veces en el consumidor, con una estrella de líneas rectas donde la oficial
+  tiene curvas.
+
+<!-- projects:regla id=marca-tema-y-foco -->
+
+- **Los dos temas y el foco visible son requisito de entrada.** Claro y oscuro con su
+  interruptor a la vista, y anillo doble solo en `:focus-visible`. Quitar el contorno
+  del foco sin reemplazarlo deja la interfaz inusable con teclado: una forma de romperla
+  que no se ve mirándola.
+
+<!-- projects:regla id=marca-redaccion -->
+
+- **Cómo se escribe lo que el usuario lee.** Mayúscula solo al principio de la frase.
+  Los botones dicen qué va a pasar (`Guardar`, `Crear cuenta`), nunca `Aceptar` ni
+  `Click aquí`. Los errores dicen qué falló y cómo seguir, sin culpar a quien los lee. Y
+  números, fechas y monedas se formatean con las herramientas de internacionalización,
+  nunca concatenando: una fecha armada a mano va a estar mal en algún locale.
+
+<!-- projects:regla id=marca-lo-que-el-marco-no-transporta -->
+
+- **Lo que el marco NO trae.** La tipografía llega sin archivos propios: el sistema
+  declara que la carga de un proveedor externo porque la marca no entregó los binarios.
+  Mientras ese hueco esté abierto el marco **no** pone en rojo a nadie por la tipografía:
+  poner su sello sobre una sustitución la convertiría en la norma. Cerrarlo es un archivo
+  que la marca tiene que entregar. Con los iconos pasa lo mismo, y ahí el sistema los toma
+  de un proveedor sin fijar versión, que es lo contrario de lo que este marco pide para
+  todo lo que ejecuta.

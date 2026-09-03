@@ -1,0 +1,41 @@
+# Contexto de build de las imagenes de este repo. Los Dockerfile se construyen
+# desde la RAIZ del monorepo (por ejemplo: docker build -f api/Dockerfile .),
+# porque el unico lockfile valido de un workspace pnpm vive aca y sin el el
+# install de la imagen deja de ser reproducible.
+#
+# NO ES OPCIONAL: sin este archivo, el `COPY . .` del Dockerfile se trae los
+# node_modules de la maquina que construye. Dos consecuencias, y la segunda es
+# la que cuesta horas de diagnostico: la imagen crece cientos de MB, y los
+# binarios NATIVOS compilados para otra plataforma (esbuild, los engines de
+# Prisma) pisan a los que instala pnpm dentro de la imagen.
+node_modules
+**/node_modules
+
+# Artefactos de build y de medicion: los regenera la imagen o no le sirven.
+dist
+build
+coverage
+*.tsbuildinfo
+
+# Historia y metadatos: la imagen no versiona nada.
+.git
+.github
+.gitignore
+.gitattributes
+
+# Entorno local. Un .env dentro de una imagen es un secreto publicado: los
+# secretos se resuelven en el arranque de la tarea, no se copian.
+.env
+.env.*
+!.env.example
+
+# Ruido de herramientas locales y del sistema.
+.claude
+.idea
+.vscode
+*.log
+.DS_Store
+
+# Documentacion y specs: no se sirven desde el contenedor.
+openspec
+docs

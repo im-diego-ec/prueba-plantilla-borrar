@@ -1,0 +1,30 @@
+{
+  // Programa de tipos de la suite E2E. Existe por dos razones concretas: es lo
+  // que compila `pnpm -C e2e run typecheck` —lo unico que este paquete le debe
+  // al CI de cada PR, porque las pruebas mismas corren contra un ambiente ya
+  // desplegado— y es lo que mantiene estos archivos DENTRO del alcance del censo
+  // de fuentes del marco: playwright.config.ts cae en el ignore "**/*.config.ts"
+  // del linter, asi que el compilador es el unico que lo mira.
+  //
+  // LO QUE ESTE ARCHIVO NO HACE, y aca decia que hacia: NO habilita el lint con
+  // tipos sobre estos archivos. eslint.config.mjs acota recommendedTypeChecked a
+  // los patrones de api/src y web/src, y e2e no entra en ninguno, asi que sobre
+  // este paquete NO corre no-floating-promises y un `await` olvidado en un
+  // helper sigue llegando como flake intermitente en la promocion en vez de como
+  // rojo del PR. Medido con una sonda `p.then(() => undefined)` al final de
+  // humo.spec.ts: lint y typecheck en verde; el MISMO texto pegado en
+  // api/src/app.ts sale en rojo con no-floating-promises. Cerrarlo es agregar el
+  // patron de e2e a esa lista de `files` en eslint.config.mjs —lo que arrastra
+  // tener que enumerar este tsconfig o dejar que projectService lo autodetecte—,
+  // no tocar este archivo.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Playwright orquesta el navegador DESDE Node: process.env es la unica API de
+    // plataforma que usa esta suite. Sin "dom" a proposito — el codigo habla con
+    // la pagina por la API de Playwright, nunca por globals del navegador; si
+    // alguien escribe `document.x` aca, es un error y tiene que salir en rojo.
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"]
+}

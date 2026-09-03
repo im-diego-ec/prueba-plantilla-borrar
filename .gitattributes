@@ -1,0 +1,34 @@
+# Normalizacion de fin de linea, y no es cosmetica. Con core.autocrlf=true —el
+# default de git en Windows— cada checkout REMATERIALIZA los archivos con CRLF
+# aunque en el repositorio esten guardados con LF. A partir de ahi, todo lo que
+# compare contenido byte a byte miente: un arbol recien clonado aparece SUCIO
+# sin que nadie haya tocado nada, un diff lee como "modificadas" lineas que solo
+# se borraron, y una prueba que compara un archivo generado contra el esperado
+# falla por el fin de linea y no por lo que estaba probando.
+#
+# Lo caro no es el fallo sino que el sintoma no se parece a su causa: se busca el
+# bug en el codigo, y el codigo esta bien. Un 'git reset --hard' basta para
+# producirlo y no deja rastro de por que.
+#
+# `text=auto eol=lf` fija el fin de linea del arbol de trabajo en TODOS los
+# sistemas, asi que la configuracion de cada maquina deja de ser una variable del
+# resultado. Es la unica forma de que dos personas con sistemas distintos midan
+# lo mismo sobre el mismo commit.
+#
+# ESTE TEXTO NO ES COPIA DEL QUE EL MARCO TIENE EN SU PROPIA RAIZ, y la
+# divergencia es deliberada: alla el mismo remedio se cuenta con la fecha del
+# incidente que lo motivo, que es historia de aquel repositorio y no de este.
+# Aca queda solo el mecanismo, cierto en cualquier repositorio y sin fecha que
+# envejezca. Si algun dia se comparan los dos archivos y no coinciden, eso es lo
+# esperado, no una copia que quedo vieja.
+* text=auto eol=lf
+
+# Binarios: sin conversion ni diff de texto.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

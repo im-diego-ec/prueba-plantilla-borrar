@@ -1,0 +1,254 @@
+name: Claude Code
+
+# ---------------------------------------------------------------------------
+# El bot de @claude en los issues y los PRs de este repositorio. Se dispara solo
+# cuando una persona con permiso de escritura escribe "@claude" en un issue, en
+# un comentario o en un review, y contesta en ese mismo hilo.
+#
+# NO ES PARTE DEL PIPELINE: no reporta ningun check, no gatea ningun merge y si
+# falla no bloquea nada. El unico check requerido del repo sigue siendo el
+# veredicto agregado del CI (ci-ok, ver .github/proteccion-main.md); este
+# workflow NO se agrega nunca al ruleset.
+#
+# POR QUE LLEGA EN EL SCAFFOLD Y NO POR REFERENCIA. Un workflow que se dispara
+# por menciones no se puede consumir con uses: — y ademas su contenido es del
+# proyecto (que sabe el bot de este repo, con que modelo corre, cuantos turnos
+# tiene). Es scaffold: se copia UNA vez y a partir de ahi es tuyo. Si lo cambias
+# de una forma que le sirva a todos, eso sube al marco en la revision trimestral
+# de divergencia.
+#
+# POR QUE LLEGA PUESTO Y NO COMO UNA INSTRUCCION EN UNA GUIA. Un bot que hay que
+# configurar a mano despues de crear el repo termina existiendo solo donde
+# alguien se acordo, y el repo que no lo tiene no emite ninguna senal: nadie
+# extrana una respuesta que nunca se prometio. Llegando en el andamio, el
+# proyecto nace con el bot, y lo unico que queda a mano son los dos actos
+# humanos de abajo — que el primer paso del job reclama en rojo si faltan.
+#
+# DOS ACTOS HUMANOS ANTES DE QUE FUNCIONE (ninguno se puede automatizar desde
+# aca, y el primer paso del job falla en rojo con el mensaje exacto si faltan):
+#   1. Instalar la GitHub App de Claude sobre este repositorio.
+#   2. Cargar el secret CLAUDE_CODE_OAUTH_TOKEN en Settings > Secrets and
+#      variables > Actions. Es el paso "cargar vars y secrets" del bootstrap.
+#
+# PLACEHOLDERS QUE USA: NINGUNO, y eso es a proposito.
+#
+# El nombre del proyecto y el duenio salen del CONTEXTO de GitHub en tiempo de
+# ejecucion --`github.event.repository.name` y `github.repository_owner`-- y no
+# de una sustitucion del andamio. El motivo es concreto: el GITHUB_TOKEN NO PUEDE
+# crear ni modificar archivos de workflow (medido: "refusing to allow a GitHub App
+# to create or update workflow ... without workflows permission"), asi que un
+# workflow que llegue por copia de un template NO SE PUEDE RETOCAR despues. Si
+# llevara el nombre sustituido, quedaria nombrando al proyecto equivocado para
+# siempre. Derivado del contexto, es correcto en cualquier repositorio sin que
+# nadie lo toque. Como todo el scaffold, no
+# debe sobrevivir ninguno al primer commit —la verificacion del bootstrap es
+# grep -rnE "\{\{[A-Z0-9_]+\}\}" .— y no confundirlos con las expresiones
+# ${{ ... }} de GitHub Actions, que van en minusculas y se quedan.
+#
+# POR QUE LAS REGLAS DEL REPO VIAJAN EN --append-system-prompt Y NO SE CONFIAN
+# A AGENTS.md. Cuando la action corre contra un pull request, restaura CLAUDE.md
+# y .claude/ DESDE LA RAMA BASE antes de arrancar (documentado en la guia de
+# seguridad de la action; las versiones del PR quedan en .claude-pr/ solo como
+# referencia). O sea: si el PR que se discute cambia AGENTS.md, el bot lee la
+# version anterior. La instruccion de este archivo, en cambio, sale siempre de
+# main —para los eventos de issue, comentario y review GitHub ejecuta la
+# definicion del workflow de la rama por defecto—, asi que es el unico canal que
+# un PR no puede alterar. Por eso aca van las reglas que no se pueden perder, y
+# no un resumen de la constitucion.
+# ---------------------------------------------------------------------------
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    # SOLO `opened`, y `assigned` se fue a proposito. Un assign no es una pregunta
+    # nueva: es un evento sobre un issue cuyo CUERPO ya contiene "@claude", asi que
+    # el `if` de mas abajo lo dejaba pasar y cada assign y cada unassign volvia a
+    # levantar un runner, hacia checkout y cargaba el secret. En un repo con
+    # colaboradores externos eso es un disparador que no depende de escribir nada.
+    types: [opened]
+  pull_request_review:
+    types: [submitted]
+
+# UN HILO, UNA CORRIDA. A este workflow lo dispara CUALQUIERA que pueda comentar,
+# y sin concurrency cada mencion levanta un runner propio, hace checkout y carga
+# el secret, sin techo. El `if` del job no ayuda: filtra por el texto del
+# comentario, no por cuantas corridas hay vivas, y el control de QUIEN puede
+# invocarlo tampoco vive aca —esta en la action, que corta DESPUES del checkout—.
+# O sea que todo lo que se puede acotar desde el archivo se acota aca o no se
+# acota.
+#
+# cancel-in-progress: true, y es lo correcto para un bot que contesta: una mencion
+# nueva en el mismo hilo REEMPLAZA a la anterior, no hace cola detras de ella. La
+# respuesta que se estaba escribiendo ya no es la que se pidio. El criterio seria
+# el contrario para un workflow que ENVIA algo —ahi cancelar a la mitad deja el
+# envio hecho a medias— y por eso no se copia sin mirar que hace el workflow.
+#
+# El `github.run_id` del final no es relleno: en un evento sin issue ni
+# pull_request en el payload el grupo quedaria en "claude-" y dos corridas ajenas
+# se cancelarian entre si. Con el run_id ese caso degrada a "un grupo por
+# corrida", que es no agrupar — que es exactamente lo que corresponde cuando no se
+# sabe a que hilo pertenece.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  claude:
+    # La compuerta de la mencion. Sin este if el job arrancaria en CADA
+    # comentario del repo: la action igual se cortaria sola por falta de
+    # disparador, pero recien despues de levantar un runner y clonar el arbol.
+    # El control real de QUIEN puede invocarlo no vive aca sino en la action,
+    # que exige permiso de ESCRITURA en el repo al actor y rechaza a los bots
+    # por defecto.
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+
+    # Cinturon contra una corrida colgada. --max-turns acota la conversacion,
+    # pero no acota una instalacion o una red que se quedan esperando, y el
+    # default de GitHub son 6 horas de runner por una respuesta que nadie va a
+    # leer.
+    timeout-minutes: 15
+
+    # PERMISOS, auditados ACCION POR ACCION en vez de copiados de un ejemplo. El
+    # motivo esta en como falla un permiso que falta: la API responde 403, y aca
+    # un 403 no se ve como un error sino como comportamiento normal — el bot
+    # contesta igual, solo que sin haber podido leer lo que le faltaba. El fallo
+    # se disfraza de respuesta pobre y nadie lo diagnostica como configuracion.
+    # Cada linea esta porque una llamada concreta la necesita; ninguna esta por
+    # las dudas:
+    #
+    #   contents: read       actions/checkout clona el arbol, y sobre ese arbol
+    #                        el bot lee AGENTS.md, los specs y el codigo por el
+    #                        que se le pregunta. Sin esto el checkout muere con
+    #                        403 antes de que el bot exista.
+    #   issues: read         leer el issue o el comentario que lo menciono y el
+    #                        hilo completo. OJO, no es redundante con el de
+    #                        abajo: un comentario escrito en un PR llega como
+    #                        evento de ISSUE, asi que sin este permiso el bot
+    #                        tampoco puede contestar dentro de un PR.
+    #   pull-requests: read  leer el PR en si: descripcion, diff y comentarios
+    #                        de review. Sin esto opina sobre un cambio que no
+    #                        puede ver.
+    #   id-token: write      NO es escritura en el repo. Es el token OIDC del
+    #                        runner, que la action canjea por el token de la
+    #                        GitHub App con la que responde. La guia de setup de
+    #                        la action lo dice literal: "The default GitHub App
+    #                        authentication path already requires this
+    #                        permission". Sin esto el bot no se autentica y no
+    #                        contesta nada.
+    #   actions: read        leer el estado de las corridas y BAJAR EL LOG del
+    #                        job que fallo (herramientas mcp__github_ci__ :
+    #                        get_ci_status, get_workflow_run_details,
+    #                        download_job_log). Es lo que hace util la pregunta
+    #                        mas frecuente del equipo, "@claude por que fallo el
+    #                        CI". Va SIEMPRE de a dos con el input
+    #                        additional_permissions de mas abajo: con el permiso
+    #                        y sin el input las herramientas no se habilitan, y
+    #                        con el input y sin el permiso la action avisa y el
+    #                        bot responde a ciegas. Los dos o ninguno.
+    #
+    # LO QUE NO SE CONCEDE, a proposito: contents:write, issues:write y
+    # pull-requests:write. Este bot no empuja ramas, no abre PRs y no edita
+    # issues. Si el proyecto decide despues que si —por ejemplo para que
+    # proponga un parche en una rama— es una decision deliberada que se escribe
+    # aca con su motivo, y sigue sin poder tocar main: la proteccion de main es
+    # la que manda, no este bloque.
+    #
+    # LIMITE DECLARADO, para no vender mas de lo que hay: este bloque acota el
+    # GITHUB_TOKEN del job. La respuesta del bot NO viaja por ese token sino por
+    # el de la GitHub App de Claude, cuyos permisos quedaron fijados al instalar
+    # la App en la organizacion. Por eso el bloque puede ser de solo lectura sin
+    # dejar al bot mudo — y por eso tampoco es la jaula que le impide empujar:
+    # eso lo impide la proteccion de main (.github/proteccion-main.md), que solo
+    # deja avanzar por PR.
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      id-token: write
+      actions: read
+
+    env:
+      # El contexto secrets no se puede leer desde el if de un job, pero si
+      # desde su env. De aca lo toma el primer paso.
+      TOKEN_CONFIGURADO: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+
+    steps:
+      # ROJO, no aviso, y a proposito. El marco manda aviso cuando falta
+      # configuracion y rojo cuando la configuracion esta rota, pero el criterio
+      # de fondo es a quien le llega la senal: aca hay una PERSONA esperando una
+      # respuesta que no va a llegar nunca. Un ::warning:: en un log que nadie
+      # abre es, para ella, silencio — el mismo silencio que el marco prohibe.
+      # La X roja en el hilo es el unico canal que la alcanza.
+      - name: Verificar que el bot esta configurado
+        if: env.TOKEN_CONFIGURADO != 'true'
+        shell: bash
+        run: |
+          echo "::error::falta el secret CLAUDE_CODE_OAUTH_TOKEN en este repo: alguien menciono a @claude y no hay con que autenticarse. Arreglo, dos actos humanos: (1) instalar la GitHub App de Claude sobre este repositorio y (2) cargar el secret en Settings > Secrets and variables > Actions. Hasta que existan los dos, este workflow falla a proposito en vez de dejar la mencion sin respuesta"
+          exit 1
+
+      - name: Checkout del repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Profundidad 1: el bot opina sobre el arbol de HOY, no hace
+          # arqueologia. Si alguna vez hace falta historia, se sube este numero
+          # a proposito y se escribe por que.
+          fetch-depth: 1
+
+      - name: Correr Claude Code
+        id: claude
+        # Pineado por SHA, no por el tag movil @v1 del tercero: esta action corre
+        # con un token sobre este repo, asi que la version que ejecuta tiene que
+        # ser una decision y no una sorpresa. El comentario de al lado NO es
+        # decorativo — es lo que Dependabot reescribe cuando sube el pin
+        # (ecosistema github-actions, que .github/dependabot.yml ya trae) y lo
+        # unico que hace legible el diff de un bump.
+        #
+        # El PR de Dependabot que suba este pin se trata como cualquier bump: se
+        # mira el changelog un minuto y se mergea con la promocion en verde.
+        # Para moverlo a mano:
+        #   curl -sS https://api.github.com/repos/anthropics/claude-code-action/git/ref/tags/v1
+        #   curl -sS https://api.github.com/repos/anthropics/claude-code-action/git/tags/<sha-del-objeto-tag>
+        # el object.sha del segundo llamado es el commit que va aca, y el campo
+        # message dice la version exacta que va en el comentario.
+        uses: anthropics/claude-code-action@e2a4b761cd77a1138a5b41410eda9b28581f9bcd # v1.0.196
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # Habilita las herramientas de CI del bot. Va de a dos con el permiso
+          # actions: read de arriba, como dice el bloque de permisos.
+          additional_permissions: |
+            actions: read
+
+          # NO se pasa el input prompt: con prompt, la action deja de responder
+          # lo que pide el comentario y ejecuta una instruccion fija. Este bot
+          # existe justamente para contestar lo que la persona escribio.
+          #
+          # --model sonnet / --effort medium: la politica de uso eficiente del
+          # area. Contestar una mencion en un issue no amerita el modelo grande;
+          # escalar es una decision de sesion de builder, no el default de un bot
+          # que corre solo.
+          #
+          # --max-turns 5: el bot opina, no implementa. Una pregunta que no entra
+          # en 5 turnos no era pregunta para el bot, era una sesion de builder.
+          # Subirlo es un acto deliberado y se escribe por que, no un reflejo
+          # cuando una respuesta sale corta.
+          #
+          # --append-system-prompt y no --system-prompt: reemplazarlo entero tira
+          # a la basura las instrucciones propias de la action (como publica la
+          # respuesta, que puede tocar, como se comporta dentro de un PR).
+          # Cada flag en su propia linea, y el texto del prompt en UNA sola: el
+          # valor se parte por lineas antes de pasarse al CLI, asi que un prompt
+          # multilinea llegaria cortado.
+          claude_args: |
+            --model sonnet
+            --effort medium
+            --max-turns 5
+            --append-system-prompt "Estas respondiendo en el repo de ${{ github.event.repository.name }}. La fuente de verdad del comportamiento son los specs vivos de openspec/, no el codigo: si te piden algo que ningun spec describe, decilo en vez de inventar endpoints, tablas o features. Las reglas del repo estan en AGENTS.md y mandan sobre tu conocimiento general; si el cambio que se discute necesitaria explicar una DECISION y no solo un arreglo, era un change de OpenSpec y no un PR directo. Nunca propongas escribir en produccion sin el OK explicito de ${{ github.repository_owner }} en esa misma sesion, ni desplegar a mano. OJO CON ESTO: el pipeline publica los sitios, pero para la forma aplicacion el marco TODAVIA NO reparte un paso que despliegue --esta declarado como desvio-- asi que no afirmes que existe un despliegue automatico sin mirar antes .github/workflows/ de ESTE repo. Nunca pidas, imprimas ni transcribas el valor de un secreto: se verifica que exista donde ya vive, no se lee hacia afuera. Opinas y explicas; el merge y el deploy son actos humanos. Tenes turnos contados: si te falta contexto, decilo y pedilo en vez de suponer."

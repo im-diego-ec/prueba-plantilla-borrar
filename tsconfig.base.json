@@ -1,0 +1,23 @@
+{
+  // Base compartida del monorepo. Cada paquete la extiende y agrega SOLO lo
+  // suyo (lib, jsx, types, include). Ejemplo del backend:
+  //   { "extends": "../tsconfig.base.json",
+  //     "compilerOptions": { "noEmit": true, "types": ["node"] },
+  //     "include": ["src"] }
+  //
+  // La politica: `strict` no se negocia — las reglas type-checked de ESLint
+  // dependen de que el compilador tenga informacion real de tipos, y apagar
+  // strict en un paquete las vuelve decorativas ahi.
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    // "bundler" asume que un bundler resuelve los imports (el caso del front y
+    // de los runtimes de test modernos). Un paquete que compile con tsc a
+    // Node puro lo pisa en su propio tsconfig con "nodenext".
+    "moduleResolution": "bundler",
+    "module": "ESNext"
+  }
+}

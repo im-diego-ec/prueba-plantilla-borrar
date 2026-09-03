@@ -1,0 +1,22 @@
+// Schema de datos: la fuente de verdad del modelo, versionada en Git.
+//
+// NACE SIN MODELOS A PROPOSITO. Un modelo de ejemplo (el clasico `Note`) no es
+// gratis: viaja con su migracion, crea una tabla real en la base de dev, y deja
+// al primer proyecto una tarea de borrado que nadie agendo. El primer modelo lo
+// escribe el proyecto, y su primera migracion la crea el mismo comando de
+// siempre:
+//
+//   pnpm --filter api prisma:migrate --name inicial
+//
+// Reglas del area que este archivo tiene que respetar:
+//   - Una sola base por proyecto (no se crea otra "para probar").
+//   - La base guarda UTC; la conversion a hora de Ecuador es de la aplicacion.
+//   - Las bajas son LOGICAS: se modela un campo de baja, no un DELETE.
+//   - Cambiar este archivo es una migracion, y una migracion se pregunta antes.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

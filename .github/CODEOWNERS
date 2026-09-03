@@ -1,0 +1,31 @@
+# CODEOWNERS — automatiza el REVIEW CRUZADO entre builders y el gate del PO.
+# Los roles y su alcance estan en AGENTS.md (seccion "Como trabajamos: OpenSpec").
+#
+# Se usan EQUIPOS de la organizacion, no handles personales, por tres razones:
+# sobreviven a que un rol cambie de persona (se edita el equipo, no N archivos
+# en N repos); no filtran nombres propios al scaffold; y un equipo vacio o mal
+# escrito se nota, mientras que un handle mal escrito falla en silencio —
+# GitHub simplemente no asigna a nadie y el review cruzado desaparece sin ruido.
+#
+# REQUISITO: los equipos deben tener acceso de ESCRITURA al repo. Un equipo sin
+# permiso de escritura NO puede ser code owner: GitHub lo ignora y, otra vez, el
+# review cruzado se pierde sin avisar.
+#
+# Mecanica clave: GitHub solicita review a los owners EXCEPTO el autor del PR.
+# Con el equipo de builders como owner de todo, el PR de un builder auto-asigna
+# a los demas builders — "el que no escribio, revisa", sin automatizacion custom.
+
+*                                  @im-diego-ec/builders
+
+# El PO es el UNICO owner de los contratos de negocio: la ultima regla que
+# matchea REEMPLAZA a los owners (no suma), asi que en estas rutas el reviewer
+# auto-asignado es el PO — y con el enforcement duro activo, su aprobacion es EL
+# gate del PO, sin que un builder pueda satisfacerlo por el.
+#
+# Por eso mismo el PO NO debe ser miembro del equipo de builders: si lo fuera,
+# podria satisfacer su propio gate desde el otro rol y la separacion se cae.
+# Los builders igual quedan asignados via el resto de archivos del mismo PR
+# (design, tasks, codigo).
+/openspec/changes/**/proposal.md   @im-diego-ec/po
+/openspec/changes/**/specs/        @im-diego-ec/po
+/openspec/specs/                   @im-diego-ec/po

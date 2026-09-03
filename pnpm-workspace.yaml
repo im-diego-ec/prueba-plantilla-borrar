@@ -1,0 +1,77 @@
+# LA UNICA declaracion del workspace de mi-proyecto. Vive en la raiz y en
+# ningun otro lugar: un pnpm-workspace.yaml dentro de un paquete no declara un
+# workspace anidado, lo unico que hace es que ese directorio resuelva
+# dependencias distinto que la raiz (y el .gitignore del marco ya ignora el
+# lockfile espurio que aparece cuando alguien corre `pnpm install` ahi).
+#
+# De aca sale la lista de paquetes que el CI del marco DERIVA con
+# `pnpm list -r --depth -1 --json` para exigirle a cada uno los scripts
+# typecheck, test y build. O sea: agregar un paquete a esta lista lo mete solo
+# en la verificacion, y no hay una segunda lista en el CI que alguien tenga que
+# acordarse de actualizar.
+#
+# Los nombres de aca son DIRECTORIOS, no los marcadores api /
+# web: `projects init` copia las rutas tal cual y solo sustituye el
+# contenido de los archivos. Los marcadores nombran el PAQUETE (el campo "name"
+# de su package.json), que es lo que matchea `pnpm --filter`.
+# EL GLOB EN VEZ DE LOS NOMBRES, y no es un detalle de estilo.
+#
+# Con los paquetes escritos a mano, cualquier forma de proyecto que no tuviera
+# exactamente esos nombres rompia la puerta de calidad del marco: un sitio de
+# contenido sin `api/` dejaba una entrada apuntando a un paquete que no existe.
+# El asterisco enumera lo que HAY, que es lo unico que sigue siendo cierto
+# cuando el andamio reparte formas distintas.
+packages:
+  - "*"
+  # SUITE E2E: Playwright contra un ambiente YA DESPLEGADO, no contra localhost.
+  # Esta declarada porque .github/workflows/ci.yml trae dos entradas de
+  # EXCEPCIONES para este paquete (e2e:test y e2e:build)
+  # y una excepcion que no corresponde a ningun paquete del workspace es ROJA a
+  # proposito. O sea: el andamio no puede traer esas excepciones y NO traer el
+  # paquete — el repo nuevo naceria en rojo por algo que el andamio escribio.
+  # Si un proyecto de verdad no tiene suite E2E, son tres cosas en el mismo PR:
+  # borrar e2e/, borrar esas dos entradas de ci.yml y borrar el glob
+  # "e2e/**/*.mjs" del entorno Node de eslint.config.mjs. Ya no hay
+  # una linea que borrar aca: el glob de arriba lo enumera si esta y lo ignora si
+  # no, que es exactamente lo que hacia falta para que el andamio pueda repartir
+  # formas distintas de proyecto.
+
+# LA LISTA DE APROBACION DE SCRIPTS DE INSTALACION, Y POR QUE VIVE ACA. Desde su
+# mayor 10, pnpm NO ejecuta los scripts de instalacion de las dependencias salvo
+# que esten aprobados; desde la 11 la clave se llama `allowBuilds` y SOLO se lee
+# de este archivo — el campo `pnpm` del package.json de la raiz ya no se mira.
+# Medido con el pnpm que fija package.json (11.23.0) sobre un proyecto de una
+# sola dependencia con script de instalacion: declarandolo en
+# `pnpm.onlyBuiltDependencies` del package.json el install sale 1 y avisa «The
+# "pnpm" field in package.json is no longer read by pnpm»; declarandolo como el
+# bloque de abajo, sale 0.
+#
+# SIN ESTE BLOQUE EL REPO NUEVO NO ARRANCA, y ademas se ensucia solo: el primer
+# `pnpm install` sale 1 con ERR_PNPM_IGNORED_BUILDS y de paso ESCRIBE en este
+# archivo un `allowBuilds` de relleno donde cada paquete vale el texto «set this
+# to true or false» —que no es un booleano—, asi que el segundo install vuelve a
+# salir 1 sobre un archivo que ya nadie escribio a proposito.
+#
+# SON LOS CUATRO QUE PNPM NOMBRA, NI UNO MAS. @prisma/client se parece a un
+# quinto y no lo es: su package.json publicado no trae preinstall ni postinstall
+# (el cliente lo genera `pnpm datos`, que es un script del proyecto, no de la
+# dependencia), asi que aprobarlo seria una linea que nadie puede ver fallar. Si
+# al subir dependencias apareciera un quinto de verdad, el propio
+# ERR_PNPM_IGNORED_BUILDS lo nombra con su version.
+#
+# QUE SE ROMPE SI SE SACA ALGUNO — los cuatro traen un script real, leido en su
+# package.json publicado: `preinstall` en prisma, `postinstall` en
+# @prisma/engines, esbuild y @clerk/shared. Sin los dos de prisma, `pnpm datos`
+# se queda sin motores de consulta; sin el de esbuild, el build del front se
+# queda sin su binario nativo.
+allowBuilds:
+  "@clerk/shared": true
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  # `workerd` es el motor con el que Cloudflare corre lo que se publica, y lo
+  # trae wrangler. Sin esta linea, `pnpm install` lo deja a medias y CUALQUIER
+  # comando posterior del paquete muere con ERR_PNPM_IGNORED_BUILDS —no el
+  # despliegue: tambien el `build`—, con una traza del gestor de paquetes que no
+  # habla de Cloudflare por ningun lado. Medido el 2026-08-26.
+  workerd: true

@@ -1,0 +1,62 @@
+node_modules
+dist
+pnpm-lock.yaml
+
+# Lo escribe `astro build` en cada compilacion: tipos de las colecciones de
+# contenido. Mismo criterio que .projects/ y que el andamio de OpenSpec — un
+# archivo que otra herramienta posee y reescribe no lo policia este formateador.
+**/.astro/
+
+# Lo escribe Playwright con las capturas y trazas de una prueba que fallo. Mismo
+# criterio que `.astro/` y `coverage/`: un artefacto de una herramienta, no del
+# proyecto. Sin esta linea, un `pnpm e2e` fallido deja el `pnpm verificar`
+# siguiente en rojo por archivos que nadie escribio.
+**/test-results/
+
+# Generados: los reescribe una herramienta, formatearlos solo genera diffs.
+# Ajustar a los generados de este proyecto (cliente del ORM, componentes de UI).
+# web/src/components/ui
+# api/src/generated
+
+# El archive de OpenSpec es HISTORIA INMUTABLE: reformatearlo cambiaria
+# documentos que ya cerraron y ensuciaria el registro del porque. Los changes
+# activos y los specs vivos SI se formatean.
+openspec/changes/archive
+
+# La porcion del marco es un ARTEFACTO GENERADO: lo escribe el marco y el CI
+# compara su contenido contra el texto publicado para la version que declara.
+# Pasarle el formateador de este repo lo pondria en divergencia por una razon
+# que no es del proyecto — y el rojo diria "alguien lo edito a mano".
+# Las ENTRADAS del render (.projects-valores.json, .projects-desvios.json) viven
+# fuera de este directorio a proposito, y esas SI se formatean.
+.projects/
+
+# Misma razon, para la superficie de Cursor cuando el proyecto la declara.
+.cursor/rules/00-marco.mdc
+
+# EL ANDAMIO DE AGENTES QUE ESCRIBE EL CLI DE OPENSPEC. Lo genera `openspec init`
+# —que `projects init` corre por nosotros con la version que pina el marco— y lo
+# reescribe cada `openspec update`. Son archivos de una herramienta de terceros:
+# no pasan `prettier --check` tal como los escribe, y formatearlos no arregla
+# nada porque el siguiente update devuelve el diff. Mismo criterio que `.projects/`.
+#
+# MEDIDO, no supuesto: en un repo recien nacido del andamio, con el pin 1.9.0,
+# son 24 archivos y hacian fallar `pnpm format:check` en el primer PR.
+#
+# El alcance es PRECISO a proposito: no se ignora `.claude/` entero, porque ahi
+# tambien viven el agente y la skill que reparte el marco (cazador-fail-open.md,
+# projects-archive-change/) y esos SI se formatean y SI se revisan.
+.claude/commands/opsx
+.claude/skills/openspec-*
+
+# LO REESCRIBE pnpm, NO ESTE REPO. `pnpm install` con pnpm 11 anota aqui los
+# paquetes con script de instalacion aprobado y las versiones demasiado nuevas
+# para su ventana de espera, y lo hace en SU estilo de comillas. Medido en un
+# repo recien nacido: el archivo pasa de 63 a 81 lineas y `pnpm format:check`
+# queda rojo antes de que nadie haya escrito una linea de codigo.
+#
+# Formatearlo no arregla nada: el siguiente `pnpm install` devuelve el diff.
+# Es el mismo criterio que `.projects/` y que el andamio de OpenSpec — un
+# archivo que otra herramienta posee y reescribe no lo policia el formateador
+# de este repo.
+pnpm-workspace.yaml

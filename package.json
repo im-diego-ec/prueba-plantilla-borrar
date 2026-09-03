@@ -1,0 +1,59 @@
+{
+  "name": "mi-proyecto",
+  "private": true,
+  "packageManager": "pnpm@11.23.0",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r --filter '!e2e' run test",
+    "build": "pnpm -r run build",
+    "datos": "pnpm --filter api --fail-if-no-match exec prisma generate",
+    "verificar": "pnpm datos && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build",
+    "e2e": "pnpm -r --filter e2e run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tanstack/eslint-plugin-query": "^5.102.3",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.68.0"
+  },
+  "projects": {
+    "stack": {
+      "desvios": [],
+      "notas": [
+        {
+          "tema": "typescript 7 con typescript-eslint 8: por que se subio y como se comprueba que sigue valiendo",
+          "detalle": "typescript esta en la ultima estable (7.0.2 el 2026-08-25, leido de registry.npmjs.org) aunque typescript-eslint 8.68.0 declare `typescript >=4.8.4 <6.1.0` en su peer: SOBRE EL PAPEL EL PEER NO ADMITE LA 7. La version anterior del andamio se quedaba en ^6.0.3 por un desvio escrito que ya no describe lo que pasa, y ese desvio se borro. MEDIDO sobre el andamio instanciado con pnpm 11.23.0: `pnpm install` sale 0 y sin un solo aviso de peer; `pnpm datos && pnpm typecheck` verde con tsc 7.0.2 en los tres paquetes; `pnpm lint` verde. EL MECANISMO, que conviene entender antes de tocarlo: pnpm trae `autoInstallPeers: true` por defecto (queda escrito en pnpm-lock.yaml), asi que instala POR SU CUENTA un typescript 6.0.3 para satisfacer el peer de typescript-eslint en la raiz, y los paquetes compilan con el 7.0.2 que ellos declaran. `pnpm why typescript` muestra las dos copias: la 6.0.3 colgando de typescript-eslint y @tanstack/eslint-plugin-query, la 7.0.2 de api, web, e2e y prisma. O sea: el compilador del proyecto es el 7 y el que LEE el linter es el 6, y las reglas type-checked no se enteran del salto. COMO COMPROBAR QUE SIGUE SIENDO CIERTO, y es la unica comprobacion que distingue \"el lint pasa\" de \"el lint dejo de mirar\": agregarle a api/src/app.ts una funcion con `const x: any = JSON.parse(\"{}\"); return x.metodo();` y correr `pnpm lint`. Tienen que salir CINCO errores: no-unsafe-assignment, no-explicit-any, no-unsafe-return, no-unsafe-call y no-unsafe-member-access. Si sale verde, las reglas con tipos se apagaron y el numero de version no vale lo que costo: ahi si hay que volver a bajar typescript hasta el rango del peer, y esta vez con un desvio escrito. EL DIA QUE typescript-eslint AMPLIE SU PEER esta nota se puede acortar, pero la mutacion del `any` conviene dejarla: es la que caza cualquier forma de que el lint deje de tener programa de tipos, no solo esta."
+        },
+        {
+          "tema": "pnpm 11 y los scripts de instalacion",
+          "detalle": "Desde la mayor 10 pnpm BLOQUEA por defecto los scripts de instalacion de las dependencias, y desde la 11 la lista de permitidos se llama `allowBuilds` y SOLO se lee de pnpm-workspace.yaml: el campo `pnpm` de ESTE archivo ya no se mira. Medido con pnpm 11.23.0: declarar el permiso en `pnpm.onlyBuiltDependencies` de package.json deja el install en 1 y avisa \"The 'pnpm' field in package.json is no longer read by pnpm\"; declararlo en `allowBuilds` de pnpm-workspace.yaml lo deja en 0. Por eso la lista vive alla y no aca: son los paquetes que ERR_PNPM_IGNORED_BUILDS nombra, con su motivo escrito al lado en ese archivo. OJO: desde que el andamio pasa por Supabase Auth y no por Clerk, @clerk/shared ya no esta en el arbol y su linea de allowBuilds quedo sin dueno. Medido: un allowBuilds que nombra un paquete ausente NO rompe ni avisa (install en 0), asi que la linea sobra sin doler — pero una lista que nombra lo que no existe deja de ser legible como inventario, y el proximo que la lea va a buscar un paquete que no esta. Esta nota queda en package.json porque la trampa es de package.json: quien vaya a agregar el permiso lo va a buscar primero aca."
+        }
+      ]
+    },
+    "cobertura": {
+      "excluidos": [
+        {
+          "patron": "eslint.config.mjs",
+          "motivo": "Configuracion del propio linter: la ejecuta eslint al arrancar, no una prueba. Ninguna suite puede importarla para medirla y la raiz del monorepo no emite reporte de cobertura. Queda DENTRO del alcance del censo de fuentes (el linter si la examina) y fuera de la medicion de cobertura: son dos cosas distintas."
+        },
+        {
+          "patron": "vitest.config.base.mjs",
+          "motivo": "Configuracion de cobertura que reparte el marco: es lo que MIDE, no algo medible. Cubrirla con una prueba seria probar el instrumento con el instrumento. La lee el linter y no necesita programa de tipos, que es justo por lo que es .mjs y no .ts."
+        },
+        {
+          "patron": ".claude/skills/**/*.mjs",
+          "motivo": "Herramientas de agente que reparte el marco (no las escribe este proyecto y no son codigo de producto: no se sirven a ningun usuario). Su verificacion vive en el repo del marco, que tiene sus propias pruebas; medirlas aca seria contabilizar dos veces codigo ajeno."
+        }
+      ]
+    }
+  }
+}

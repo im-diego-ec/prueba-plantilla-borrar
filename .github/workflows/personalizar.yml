@@ -1,0 +1,139 @@
+# ---------------------------------------------------------------------------
+# PERSONALIZAR ESTE PROYECTO. Es el segundo y ultimo clic.
+#
+# DONDE VIVE ESTE ARCHIVO: en los repositorios PLANTILLA, que son proyectos ya
+# generados. No en el marco. El marco lo escribe cuando los regenera.
+#
+# POR QUE EL PROYECTO LLEGA POR COPIA Y NO SE ARMA ACA, y esto no es una
+# preferencia: el GITHUB_TOKEN NO PUEDE crear ni modificar archivos de workflow
+# --medido contra GitHub: "refusing to allow a GitHub App to create or update
+# workflow ... without workflows permission"--. Un proyecto armado desde cero por
+# un runner nunca podria escribir su propio `ci.yml`.
+#
+# La salida es que los workflows lleguen con la COPIA DEL TEMPLATE, que no es un
+# push y por lo tanto no tiene ese limite. Por eso los workflows de este proyecto
+# derivan el nombre y el duenio del contexto de GitHub: llegan correctos a
+# cualquier repositorio sin que nadie los toque, que es justo lo que hace falta
+# cuando nadie PUEDE tocarlos.
+#
+# LO QUE ESTE WORKFLOW SI HACE, y todo esta permitido: reescribe los archivos que
+# no son workflows con los valores de verdad, y se borra a si mismo al final
+# --borrar un workflow SI se puede, tambien medido--.
+# ---------------------------------------------------------------------------
+name: Personalizar mi proyecto
+
+on:
+  workflow_dispatch:
+    inputs:
+      plataforma:
+        description: "Donde van a vivir tus datos"
+        type: choice
+        required: true
+        default: "Supabase (gratis para empezar, trae las cuentas de usuario hechas)"
+        options:
+          - "Supabase (gratis para empezar, trae las cuentas de usuario hechas)"
+          - "Todavia no se (lo decido mas adelante)"
+      equipo:
+        description: "Trabajas solo o hay otra persona que revisa"
+        type: choice
+        required: true
+        default: "solo"
+        options:
+          - "solo"
+          - "hay otra persona"
+      companero:
+        description: "Si hay otra persona: su usuario de GitHub, sin la arroba"
+        type: string
+        required: false
+        default: ""
+      dominio:
+        description: "Si ya tenes un dominio propio, escribilo (miproyecto.com). Si no, dejalo vacio"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  personalizar:
+    name: Personalizar mi proyecto
+    # No corre en el repositorio plantilla: ahi borraria la plantilla. Es la
+    # misma senial que usa la puerta del marco, y no depende de ninguna cuenta.
+    if: github.event.repository.is_template != true
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Traer este proyecto
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Traer el marco, que es quien sabe armar
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: im-diego-ec/Projects
+          ref: main
+          path: .marco
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with: { node-version: "22" }
+
+      - name: Traducir lo que elegiste
+        env:
+          ENTRADA_FORMA: aplicacion
+          ENTRADA_PLATAFORMA: ${{ startsWith(inputs.plataforma, 'Todavia') && 'ninguna' || 'supabase' }}
+          ENTRADA_EQUIPO: ${{ inputs.equipo == 'hay otra persona' && 'equipo' || 'solo' }}
+          ENTRADA_COMPANERO: ${{ inputs.companero }}
+          ENTRADA_DOMINIO: ${{ inputs.dominio }}
+          ES_TEMPLATE: ${{ github.event.repository.is_template }}
+        run: node .marco/herramientas/projects-puerta.mjs "${RUNNER_TEMP}"
+
+      - name: Armar el proyecto con tus valores
+        run: |
+          mkdir -p "${RUNNER_TEMP}/proyecto"
+          node .marco/herramientas/projects-init.mjs \
+            --valores "${RUNNER_TEMP}/valores.json" \
+            --destino "${RUNNER_TEMP}/proyecto" \
+            --sin-arranque
+
+      - name: Poner tus valores, sin tocar los workflows
+        # LOS WORKFLOWS NO SE TOCAN, y no es prolijidad: el GITHUB_TOKEN no puede
+        # modificarlos. Llegaron correctos con la copia --derivan el nombre y el
+        # duenio del contexto-- asi que no hace falta.
+        run: |
+          set -euo pipefail
+          rm -rf .marco
+          # Se vacia todo menos `.git` y `.github/workflows`.
+          find . -mindepth 1 -maxdepth 1 -not -name '.git' -not -name '.github' -exec rm -rf {} +
+          find .github -mindepth 1 -maxdepth 1 -not -name 'workflows' -exec rm -rf {} +
+          # Y al proyecto recien armado se le sacan SUS workflows ANTES de copiar,
+          # que es mas claro que copiarlos y despues restaurar los de aca.
+          rm -rf "${RUNNER_TEMP}/proyecto/.github/workflows"
+          cp -a "${RUNNER_TEMP}/proyecto/." .
+          cp "${RUNNER_TEMP}/desvios.json" .projects-desvios.json
+          echo "workflows que sobrevivieron intactos:"
+          ls .github/workflows
+
+      - name: Borrar este workflow, que ya cumplio
+        # Borrar SI se puede con el GITHUB_TOKEN. Crear y modificar no. Se borra
+        # para que nadie lo vuelva a correr sobre un proyecto ya personalizado.
+        run: rm -f .github/workflows/personalizar.yml
+
+      - name: Guardarlo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Mi proyecto, con mis valores"
+          git push
+
+      - name: Decir que quedo y que sigue
+        run: |
+          {
+            echo "## Tu proyecto esta listo"
+            echo ""
+            echo "Volve a la portada del repositorio. Lo primero que conviene abrir es **README.md**."
+            echo ""
+            echo "Lo que el marco todavia no puede resolver solo quedo anotado en \`.projects-desvios.json\`."
+          } >> "${GITHUB_STEP_SUMMARY}"

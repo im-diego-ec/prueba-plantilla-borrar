@@ -1,0 +1,68 @@
+# PostgreSQL local para desarrollar mi-proyecto. Se levanta con:
+#   docker compose up -d
+#
+# POR QUE EXISTE. El stack fija PostgreSQL via Prisma, y las migraciones se
+# ensayan contra una base real antes de tocar dev. Sin esto, `prisma migrate
+# dev` no tiene contra que correr y la unica base disponible seria la de un
+# ambiente compartido: dev es staging de todo el equipo, no el banco de pruebas
+# de una rama.
+#
+# ESTO ES SOLO PARA LA MAQUINA DE QUIEN DESARROLLA. Nada de este archivo se
+# despliega, y este archivo NO decide donde vive la base en los ambientes reales:
+# eso es la capacidad (b) del contrato de plataforma, y quien la cubre lo dice el
+# adaptador que el proyecto haya elegido en infra/adaptadores.md — Postgres
+# administrado de la plataforma, base del proveedor de nube, o ninguno todavia.
+#
+# MIENTRAS NO HAYA NADA DESPLEGADO —y un repositorio recien nacido no lo tiene,
+# declare la plataforma que declare— ESTE CONTENEDOR ES LA BASE DEL PROYECTO, y
+# eso esta bien: no hace falta una base en la nube para ensayar las migraciones.
+# Lo que no cambia con la plataforma es la regla de los secretos: la contrasena de
+# aca es de juguete y vale SOLO en local; ningun secreto real entra a este archivo
+# ni al build.
+#
+# EL NOMBRE DE LA BASE ESTA ACOPLADO al DATABASE_URL de api/.env.example, y por
+# eso los dos lados salen AHORA DEL MISMO MARCADOR: `mi-proyecto` aca y
+# `.../mi-proyecto` alla. Hasta el 2026-08-24 este lado era un literal FIJO y el
+# comentario pedia acordarse de cambiar los dos en el mismo commit — y el propio
+# archivo ya incumplia lo que pedia, porque ese literal no era el `mi-proyecto`
+# del otro lado: todo repo nuevo nacia con el contenedor sirviendo una base que
+# su DATABASE_URL no nombra.
+#
+# Con el marcador no queda nada que recordar: `projects init` sustituye los dos
+# a la vez o ninguno (una sustitucion incompleta es error, no aviso, en la
+# herramienta). El sintoma que evita: `prisma migrate dev` autocrea la base que
+# falte, asi que el desajuste no se ve — deja el contenedor con una base vacia
+# que nadie usa — pero psql o `prisma db pull` fallan con un error que no dice
+# por que.
+#
+# Y EL ACOPLE TIENE GUARDA. pruebas/andamio/acoples-del-andamio.test.mjs compara
+# el POSTGRES_DB de aca contra el ultimo segmento del DATABASE_URL de
+# api/.env.example y exige que sean el mismo texto; tambien exige las comillas
+# del parrafo de abajo. Antes coincidian porque alguien los escribio bien.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Las comillas NO son de estilo: en YAML una llave abre un mapa en flujo,
+      # asi que sin ellas este valor, mientras es un marcador, parsea como un
+      # MAPA anidado y no como texto (medido con un parser: la clave del mapa
+      # resulta ser otro mapa). El archivo no se rompe, se vuelve otra cosa —
+      # que es peor, porque no hay error que mirar.
+      POSTGRES_DB: "mi-proyecto"
+    ports:
+      # El puerto estandar de Postgres. Si otro proyecto del area ya lo tiene
+      # tomado en esta maquina, `docker compose up -d` falla con "port is
+      # already allocated": se cambia el lado IZQUIERDO (el del host) aca y el
+      # puerto del DATABASE_URL de api/.env, que es el mismo acople de arriba.
+      - "5432:5432"
+    volumes:
+      # Volumen nombrado: los datos sobreviven a `docker compose down`. Compose
+      # le pone como prefijo el nombre del directorio del proyecto, asi que dos
+      # repos del area no se pisan los datos. Para empezar de cero:
+      # `docker compose down -v` (borra la base local, no pregunta).
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

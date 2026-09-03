@@ -1,0 +1,86 @@
+# Dependabot — actualizaciones automaticas de dependencias.
+# Politica del marco (ver fronteras ⚠️ en AGENTS.md): cada ecosistema abre PRs
+# semanales; minor+patch llegan AGRUPADOS en un solo PR para no inundar y los
+# mergea cualquier builder con la promocion en verde. Los majors llegan SOLOS
+# porque pueden romper: sesion dedicada, orden de riesgo (devDeps -> runtime ->
+# auth) y verificacion real en dev antes de prod. Sin auto-merge en ningun caso.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      minor-y-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    # DIARIO Y NO SEMANAL, y el motivo es el marco. La agenda es POR ENTRADA de
+    # `updates:`, no por dependencia, y GitHub NO permite dos entradas del mismo
+    # ecosistema y directorio («all values are unique and there is no overlap in
+    # directories defined»). Asi que «diario para el marco, semanal para el resto»
+    # no se puede expresar: o es diario para toda la entrada, o el marco espera.
+    #
+    # Diario para toda la entrada es barato y esta acotado por los grupos de abajo:
+    # Dependabot no abre un segundo PR de un grupo mientras el primero siga abierto,
+    # asi que el techo son DOS PRs abiertos —uno del marco y uno de las demas— y lo
+    # que cambia a diario es la CORRIDA, no la cantidad de PRs. Las otras entradas de
+    # este archivo siguen semanales: `interval` no se comparte.
+    schedule:
+      interval: "daily"
+    # EL MARCO SALE DEL COOLDOWN, y esto no estaba y costo una semana de retraso
+    # invisible. Cuando `cooldown` no se declara, GitHub aplica un default de TRES
+    # DIAS a las actualizaciones de version: medido el 2026-08-24, con la 1.6.0
+    # publicada y disponible, el log dijo «Available release version/ref is 1.6.0 /
+    # Found acceptable version outside cooldown: 1.4.2 / Latest version is 1.4.2».
+    # O sea que propuso una version vieja a proposito.
+    #
+    # Sumado a la agenda semanal que habia antes, el retraso llegaba a NUEVE DIAS:
+    # una version publicada de sabado a lunes no se proponia hasta el lunes
+    # siguiente. Para un marco cuyo canal de distribucion ES el PR del bump, eso
+    # vacia el canal sin que nada avise.
+    #
+    # El cooldown se DEJA para las acciones de terceros, que es donde sirve: cubre de
+    # una release recien publicada y comprometida. El marco es propio y su premisa es
+    # que un arreglo llegue a todos rapido, asi que la proteccion de cadena de
+    # suministro no compra nada ahi y cuesta dias.
+    #
+    # `exclude` acepta comodines y tiene precedencia sobre `include`. El patron es el
+    # MISMO que ya funciona en el grupo de abajo —el PR del bump salio con los cinco
+    # pines—, asi que matchea las dos formas con las que Dependabot nombra al marco:
+    # `<org>/Projects` y `<org>/Projects/.github/workflows/marco-ci.yml`.
+    cooldown:
+      exclude:
+        - "im-diego-ec/Projects*"
+    # DOS GRUPOS, y el marco va SOLO en el suyo. Con un unico grupo `*`,
+    # Dependabot no abre un segundo PR mientras el del grupo siga abierto: da las
+    # demas dependencias por «manejadas» y espera actualizar el PR existente.
+    # Medido el 2026-08-21: la 1.4.1 del marco no se propuso porque habia un PR
+    # abierto del grupo por `actions/upload-artifact`, de v4 a v7 —tres majors de
+    # salto, o sea un PR que con razon puede quedarse quieto semanas— y el log lo
+    # dijo textual: «Adding dependencies as handled: (..., projects/...)».
+    #
+    # El marco es la dependencia cuyo aviso importa: es la que trae checks nuevos y
+    # arreglos de seguridad, y los PRs de su bump son ademas el censo de quien lo
+    # consume. Agruparla con el resto la vuelve rehen del PR mas trabado.
+    groups:
+      marco:
+        patterns: ["im-diego-ec/Projects*"]
+      actions:
+        patterns: ["*"]
+        exclude-patterns: ["im-diego-ec/Projects*"]
+  - package-ecosystem: "docker"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    ignore:
+      # Solo se ignoran las versiones IMPARES de node (no-LTS, soporte corto).
+      # Las PARES (LTS) SI llegan como PR automatico — la deteccion no se apaga,
+      # se filtra. Ajustar la lista si el proyecto arranca en otra mayor.
+      - dependency-name: "node"
+        versions: ["23-slim", "25-slim", "27-slim", "29-slim"]
+

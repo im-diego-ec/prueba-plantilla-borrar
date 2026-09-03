@@ -1,0 +1,609 @@
+name: CI
+
+# ---------------------------------------------------------------------------
+# CI de este repositorio. Este archivo es la UNICA pieza de CI que el scaffold
+# copia: es un llamador delgado. La MECANICA del marco (deteccion del carril
+# de docs, guardrail de deltas de OpenSpec, validacion estricta) NO vive aca —
+# se consume por referencia desde Projects, asi un arreglo alla llega a este repo
+# sin abrir un PR aca.
+#
+# Regla dura del marco: este repo NO copia el workflow reusable para editarlo.
+# Si le falta algo, o es un input que hay que agregar en Projects, o es un change
+# de OpenSpec en Projects. Ver AGENTS.md.
+#
+# HUECO A LLENAR AL CREAR EL PROYECTO: los pasos de build_test son del
+# producto. Estan escritos con los scripts que el marco da por hechos —lint y
+# format:check UNA vez desde la raiz; typecheck, test y build en CADA
+# paquete—; ajustalos al stack fijado en AGENTS.md y borra este parrafo
+# cuando quede hecho.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# OBLIGATORIO y no decorativo: un workflow reusable NUNCA recibe mas permisos
+# que los que le concede quien lo llama. Sin pull-requests:read el job de
+# deteccion del carril de docs no puede listar los archivos del PR, cae al
+# fail-open y el carril rapido no actua nunca (incidente del 2026-08-05).
+permissions:
+  contents: read
+  pull-requests: read
+
+# Un PR que recibe varios pushes no necesita corridas viejas compitiendo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Lo que hereda del marco: carril de docs + OpenSpec (guardrail y --strict).
+  marco:
+    # SIN timeout-minutes, y no es un olvido: un job que llama a un workflow
+    # reusable solo admite name, uses, with, secrets, needs, if, permissions,
+    # strategy y concurrency — la referencia de GitHub no lista `timeout-minutes`
+    # entre ellas, y ponerlo aca hace que el workflow no valide. El techo de esta
+    # llamada lo ponen los jobs del reusable, que lo llevan cada uno.
+    #
+    # Entre comillas a proposito: sin ellas, el placeholder de doble llave hace
+    # que YAML lea un mapa en flujo y el archivo no parsea antes de sustituirlo.
+    uses: "im-diego-ec/Projects/.github/workflows/marco-ci.yml@v1.8.0"
+    # EL TECHO QUE SE LE CONCEDE AL REUSABLE, y por eso no es una repeticion
+    # decorativa del bloque de arriba: un workflow reusable no recibe NUNCA mas
+    # permisos que los que le da quien lo llama, asi que esta es la linea que de
+    # verdad decide con que corre la mecanica del marco. Escribirlo por job hace
+    # visible el techo en el mismo lugar donde se lee el uses:, en vez de tener
+    # que subir al encabezado para saberlo.
+    #
+    # pull-requests: read NO se puede recortar: sin el, el job que detecta el
+    # carril de docs no puede listar los archivos del PR y cae al fail-open.
+    permissions:
+      contents: read
+      pull-requests: read
+
+  # ---------------------------------------------------------------------------
+  # LA PORCION DEL MARCO DE LA CONSTITUCION: que las reglas que leen los agentes
+  # de este repo sean las que el marco publica, integras y al dia. En un area que
+  # implementa con agentes, las reglas que el agente lee SON el producto.
+  #
+  # POR QUE ES UN JOB DE ESTE ARCHIVO Y NO UN PASO DEL WORKFLOW REUSABLE. El
+  # texto canonico viaja DENTRO de la composite action —el GITHUB_TOKEN de un
+  # consumidor no lee otro repositorio—, asi que la unica pieza capaz de comparar
+  # el artefacto contra el RE-RENDER de la fuente es la action. Hubo tambien un
+  # paso inline en marco-ci.yml que comparaba contra el SELLO que trae el propio
+  # artefacto, y la auditoria del 2026-08-20 lo midio: recomputar un sello es un
+  # `git commit` y cambiar el canonico no, asi que el paso pasaba en VERDE con una
+  # regla borrada mientras la action daba rojo. Encima las dos verdades discrepaban
+  # en el formato del sello y el paso rechazaba artefactos recien generados por la
+  # action, con un mensaje que mandaba a correr el escritor que los habia generado.
+  # El paso se borro; esto es el reemplazo.
+  #
+  # CORRE EN LOS DOS CARRILES, sin el if de solo_docs: la constitucion ES
+  # documentacion, y un PR de solo docs es exactamente el que puede editarla a
+  # mano. Dejarla fuera del carril rapido seria no verificar el caso mas probable.
+  #
+  # NO ES BORRABLE EN SILENCIO: el job de marco comprueba estaticamente que este
+  # workflow invoque la action, y si no la encuentra da rojo con el snippet listo
+  # para pegar. Un guardrail que se puede sacar sin que nada lo note no lo es.
+  # ---------------------------------------------------------------------------
+  constitucion:
+    name: constitucion
+    # TECHO DE TIEMPO. El default de GitHub son 360 minutos POR JOB: un runner
+    # colgado se lleva seis horas de cola y mantiene su GITHUB_TOKEN valido todo
+    # ese rato, y nada avisa —el sintoma es un check que no vuelve, no un rojo—.
+    # El criterio del numero es el mismo en todo este archivo: mas o menos el
+    # doble de lo que el job tarda cuando anda bien, no una cifra redonda. Este
+    # job clona, levanta node y renderiza texto: no instala dependencias ni sale
+    # a la red.
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    # Minimo real y declarado POR JOB, no heredado del workflow: la action no
+    # llama a la API de GitHub, solo lee el arbol ya checkouteado. Es lo que la
+    # propia constitucion exige ("un job nuevo declara permissions explicitos con
+    # el minimo necesario") y lo que un check de permisos por job va a leer.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # La action necesita node en el PATH y lo dice con el arreglo escrito si no
+      # esta. No hace falta pnpm ni instalar dependencias: esto lee y renderiza
+      # texto, no interroga al toolchain del proyecto.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+      - id: marco_constitucion
+        uses: "im-diego-ec/Projects/actions/constitucion@v1.8.0"
+        with:
+          modo: verificar
+      # El artefacto AL DIA se sube SIEMPRE, tambien cuando el veredicto es verde:
+      # un repo sin el workflow semanal de actualizacion lo baja de aca y lo aplica
+      # a mano, y esa es la salida que el mensaje de fallo promete. Sin
+      # if: !cancelled() no se subiria justo en la corrida que lo necesita.
+      - if: "!cancelled()"
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: constitucion-al-dia
+          path: ${{ steps.marco_constitucion.outputs.corregidos }}
+          if-no-files-found: warn
+
+  # Lo del producto. Se omite cuando el cambio no altera lo que se sirve.
+  build_test:
+    name: build-test
+    needs: marco
+    if: needs.marco.outputs.solo_docs == 'false'
+    # El mas largo de los tres, y por eso el que mas necesita el techo: es el
+    # unico que instala dependencias, compila y corre las suites, o sea el unico
+    # con pasos que pueden quedarse esperando a la red en vez de fallar.
+    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    # EL MINIMO REAL Y DECLARADO POR JOB, no heredado del encabezado. Este es el
+    # unico job del repositorio que descarga y EJECUTA codigo que nadie leyo
+    # —`pnpm install` corre los scripts de instalacion de todo el arbol de
+    # dependencias—, asi que es justamente el que menos puede permitirse
+    # heredar de mas. El techo del workflow lleva pull-requests: read porque lo
+    # necesita el job de arriba; aca no se usa para nada y no se concede.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # corepack en vez de una action de terceros: menos superficie que auditar
+      # y una dependencia menos que pinear por SHA.
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+      # SIN `cache: pnpm` EN EL SETUP-NODE DE ARRIBA, y es una decision escrita,
+      # no un olvido. El cache de Actions es un canal de ESCRITURA que desemboca
+      # justo en el paso que instala y EJECUTA codigo que nadie leyo, y conviene
+      # decir su alcance REAL y no el que se supone: un cache se guarda en el
+      # scope de la rama que lo escribe, y una corrida solo restaura los de SU
+      # rama, los de su rama BASE si es un PR, y los de la rama por defecto.
+      # Las flechas van en esa direccion y no en la otra: NO viaja de un PR
+      # cualquiera a main —eso no pasa, y creerlo lleva a defender esta decision
+      # con un motivo falso—; viaja de una corrida a las siguientes de la misma
+      # rama, y desde main hacia TODAS las ramas, que es el caso que importa
+      # porque main corre este mismo install en cada push. La restauracion por
+      # restore-keys ademas admite coincidencia parcial de clave: la entrada que
+      # se acepta no es necesariamente la que se pidio. Lo que se compra a
+      # cambio, en un repo de este porte, son segundos.
+      #
+      # SI EL INSTALL PASA A COSTAR MINUTOS la vuelta atras es legitima, y se
+      # escribe aca con la medicion al lado: cache con clave EXACTA (sin
+      # restore-keys) y el motivo. Lo que no vuelve es la linea suelta.
+      - run: pnpm install --frozen-lockfile
+
+      # El cliente de la capa de datos se genera ANTES del lint. El codigo de
+      # acceso a datos esta tipado CONTRA ese cliente generado: sin el, las
+      # reglas type-aware no tienen tipos que mirar y cada acceso a datos
+      # vuelve a ser `any` silencioso — el lint pasa en verde sin haber
+      # verificado nada. Y el modo de falla es el peor que hay: VERDE. Con el
+      # orden invertido nadie descubre el problema mirando la corrida, porque no
+      # hay nada que mirar. Vale para cualquier artefacto generado del que
+      # dependa el tipado, no solo para el cliente de datos.
+      #
+      # --fail-if-no-match no es decoracion: sin el, un --filter que no matchea
+      # (paquete renombrado o movido) imprime "No projects matched the filters"
+      # y sale 0 — la generacion no ocurre y el fail-open aparece disfrazado de
+      # lint verde. Comprobado en pnpm 9.15 y 11.18: el exit 0 es el mismo.
+      #
+      # Este paso VIAJA SOLO SI la forma elegida tiene capa de datos, y los
+      # centinelas no son decoracion: `--fail-if-no-match` esta puesto a proposito
+      # para que un filtro que no matchea sea ROJO, asi que dejarle este paso a un
+      # proyecto sin paquete de API le da un CI rojo el dia uno. Y como el
+      # despliegue solo corre con el CI en verde, ese rojo se lleva tambien la
+      # publicacion, en silencio. Medido antes de gatearlo.
+      - name: Generar el cliente de la capa de datos
+        run: pnpm --filter api --fail-if-no-match exec prisma generate
+
+      # Lint y formato corren UNA vez desde la raiz sobre todo el arbol
+      # (eslint . / prettier --check .), no por paquete: asi los archivos que
+      # viven FUERA de los paquetes —configuracion, scripts sueltos, los
+      # workflows mismos— tambien quedan dentro del alcance. Aca no hay salteo
+      # posible: si la raiz no declara el script, `pnpm <script>` sale 1.
+      - run: pnpm lint
+      - run: pnpm format:check
+
+      # -------------------------------------------------------------------
+      # LA INFRAESTRUCTURA TAMBIEN SE VERIFICA
+      #
+      # Este repositorio reparte dos raices de Terraform (infra/ e infra-prod/)
+      # y un .github/dependabot.yml con dos entradas del ecosistema terraform:
+      # van a llegar PRs que suben el provider. Sin este paso, ese PR se puede
+      # mergear en verde sin que nadie haya corrido `terraform validate` una
+      # sola vez, y la unica compuerta seria que alguien se acuerde — que no
+      # cuenta como compuerta. Ni el linter ni el formateador ni el censo de
+      # fuentes alcanzan un .tf: lo que no esta aca, no lo mira nadie.
+      #
+      # POR QUE ES EXIGIBLE DESDE EL DIA UNO, que es lo que lo separa de los
+      # PENDIENTE-INFRA: las dos comprobaciones son INERTES. `fmt -check` solo
+      # lee texto. `init -backend=false` no toca el bucket del state —que hoy es
+      # el PENDIENTE-INFRA 1 y a proposito no resuelve— ni pide credenciales de
+      # ninguna cuenta. No hace falta que este repositorio se despliegue, ni que
+      # exista la infraestructura que el codigo referencia.
+      #
+      # VENTANA DE GRACIA HASTA EL 2026-09-30, y despues rojo sin que nadie
+      # toque nada. Hasta esa fecha un fallo AVISA en vez de detener. El motivo
+      # es que hasta hoy nada miro estos archivos, asi que la primera corrida es
+      # tambien la primera medicion: la ventana es el plazo para arreglar lo que
+      # reporte. La fecha esta comparada mas abajo contra el reloj, no anotada en
+      # un checklist, justamente para que el vencimiento no dependa de nadie.
+      #
+      # SI ESTE PROYECTO NO USA TERRAFORM, borra este paso junto con infra/,
+      # infra-prod/ y las dos entradas de terraform del dependabot.yml. Mientras
+      # los directorios no existan el paso no verifica nada y lo dice, en vez de
+      # pasar en un silencio indistinguible de haber verificado.
+      #
+      # EL BINARIO AUSENTE ES UN CASO DE FALLO, NO UN CASO NEUTRO, y sigue la
+      # MISMA ventana que los otros dos. El binario sale hoy de la imagen del
+      # runner: falta el `uses:` pinado por SHA que lo garantice. Mientras la
+      # ventana corre, no encontrarlo AVISA; vencida la ventana, no encontrarlo
+      # es ROJO. El motivo es que la alternativa —avisar para siempre— convierte
+      # este paso en un aviso perpetuo que se lee como compuerta: bastaria con
+      # que la imagen del runner dejara de traer terraform para que el paso
+      # pasara en verde sin haber verificado nada, indefinidamente y sin que
+      # nadie se entere. "No pude verificar" no es "verifique y esta bien".
+      # Para cerrar el limite de raiz, agregar antes de este paso
+      # `uses: hashicorp/setup-terraform@<sha> # v<x.y.z>` con el SHA
+      # resuelto, nunca copiado de memoria:
+      #   curl -sS https://api.github.com/repos/hashicorp/setup-terraform/git/ref/tags/v3
+      #   curl -sS https://api.github.com/repos/hashicorp/setup-terraform/git/tags/<sha-del-objeto-tag>
+      # el object.sha del segundo llamado es el commit que va en el uses: y el
+      # campo message dice la version exacta que va en el comentario de al lado.
+      #
+      # ESTE PASO SE EJECUTA EN UN BANCO, no solo se lee: el marco extrae este
+      # mismo bloque `run:` del YAML y lo corre contra arboles fabricados con un
+      # `terraform` falso, en los cinco caminos que tiene (sin raices; sin
+      # binario dentro y fuera de la ventana; fmt y validate en rojo dentro y
+      # fuera). Vive en pruebas/andamio/terraform-en-ci.test.mjs del repo del
+      # marco, y si este paso se borra o se renombra, ese banco se pone rojo.
+      # -------------------------------------------------------------------
+      - name: Formato y validez de las raices de Terraform
+        shell: bash
+        env:
+          # Hasta este dia inclusive un fallo avisa; a partir del siguiente es
+          # rojo. Moverla es una decision que se escribe, no un default.
+          VENTANA_TERRAFORM: "2026-09-30"
+        run: |
+          set -euo pipefail
+
+          # Array y no cadena: sin comillas una raiz con espacio se parte, y con
+          # comillas se pasarian todas como UN argumento. El array es lo unico que
+          # no obliga a elegir entre los dos fallos. Mismo arreglo que marco-ci.yml.
+          RAICES=()
+          for D in infra infra-prod; do
+            if [ -d "${D}" ]; then RAICES+=("${D}"); fi
+          done
+
+          if [ ${#RAICES[@]} -eq 0 ]; then
+            echo "::notice::no hay raices de Terraform en este repositorio (ni infra/ ni infra-prod/): no se verifico infraestructura porque no hay ninguna. Si el proyecto tampoco las va a tener, borra este paso y las entradas de terraform de .github/dependabot.yml"
+            exit 0
+          fi
+          echo "raices de Terraform encontradas: ${RAICES[*]}"
+
+          # La gravedad se DERIVA del reloj, y se deriva ANTES de mirar si hay
+          # binario: el binario ausente comparte la ventana con los otros dos
+          # fallos, no queda fuera de ella.  Las dos fechas son ISO, asi que la
+          # comparacion de texto ordena igual que la de calendario.
+          HOY="$(date -u +%F)"
+          if [ "${HOY}" \> "${VENTANA_TERRAFORM}" ]; then
+            GRAVEDAD="error"
+          else
+            GRAVEDAD="warning"
+            echo "::notice::verificacion de Terraform en modo aviso hasta el ${VENTANA_TERRAFORM} (hoy es ${HOY}). Despues de esa fecha un fallo de fmt, de validate o la ausencia del binario detienen el CI sin que nadie toque este archivo"
+          fi
+
+          if ! command -v terraform >/dev/null 2>&1; then
+            echo "::${GRAVEDAD}::hay raices de Terraform (${RAICES[*]}) y este runner no trae el binario, asi que NO se verifico formato ni validez. Arreglo: agregar antes de este paso hashicorp/setup-terraform pinado por SHA — el encabezado de este paso trae los dos comandos que resuelven el SHA sin inventarlo"
+            if [ "${GRAVEDAD}" = "error" ]; then exit 1; fi
+            exit 0
+          fi
+          terraform version
+
+          HUBO_FALLO=0
+
+          # 1. FORMATO. Solo lee texto: ni providers, ni red, ni credenciales.
+          if ! terraform fmt -check -recursive -no-color "${RAICES[@]}"; then
+            echo "::${GRAVEDAD}::hay archivos de Terraform sin formatear (la lista esta arriba, un archivo por linea). Arreglo: corre 'terraform fmt -recursive ${RAICES[*]}' y commitea el resultado"
+            HUBO_FALLO=1
+          fi
+
+          # 2. VALIDEZ, raiz por raiz. El -backend=false es lo que la vuelve
+          # inerte: init resuelve providers y modulos y NO inicializa el state
+          # remoto, asi que el marcador del bucket no estorba.
+          for D in "${RAICES[@]}"; do
+            echo "::group::${D}: terraform init -backend=false && terraform validate"
+            if ! ( cd "${D}" && terraform init -backend=false -input=false -no-color && terraform validate -no-color ); then
+              echo "::endgroup::"
+              echo "::${GRAVEDAD}::terraform validate fallo en '${D}'. Reproducilo local con: cd ${D} && terraform init -backend=false && terraform validate"
+              HUBO_FALLO=1
+              continue
+            fi
+            echo "::endgroup::"
+          done
+
+          if [ "${HUBO_FALLO}" -eq 1 ] && [ "${GRAVEDAD}" = "error" ]; then exit 1; fi
+
+      # -------------------------------------------------------------------
+      # POR QUE NO HAY `pnpm -r typecheck` / `-r test` / `-r build` ACA
+      #
+      # `pnpm -r <script>` SALTEA EN SILENCIO todo paquete que no declara ese
+      # script: imprime "Scope: N of M workspace projects" —que cuenta los
+      # paquetes SELECCIONADOS, no los que corrieron— y sale 0. Un paquete
+      # nuevo sin typecheck, o un script renombrado por error, quedan
+      # "verificados" por omision y nadie se entera nunca.
+      #
+      # Enumerar por --filter TAMPOCO alcanza, y esto es lo que sorprende: con
+      # el script ausente, `pnpm --filter <paquete> <script>` imprime "None of
+      # the selected packages has a <script> script" y sale 0 en pnpm 9.15
+      # (recien en 11.18 sale 1). O sea que la enumeracion explicita tiene el
+      # mismo agujero, mejor escondido, y ademas depende de la version del
+      # gestor: una garantia que cambia con un bump de herramienta no es
+      # garantia.
+      #
+      # Por eso la verificacion es en dos pasos y no depende de ningun codigo
+      # de salida ajeno:
+      #   1. se DERIVA de pnpm la lista de paquetes (no hay lista escrita aca
+      #      que alguien tenga que acordarse de actualizar) y se comprueba
+      #      contra cada manifiesto que el script este DECLARADO;
+      #   2. recien entonces se corre, parado dentro de cada paquete.
+      # Un paquete nuevo entra solo. Si no declara los scripts, es rojo con el
+      # arreglo escrito, que es exactamente lo contrario de un punto ciego.
+      # -------------------------------------------------------------------
+      - name: Todo paquete declara los scripts de verificacion
+        shell: bash
+        env:
+          # Los scripts que este CI le exige a CADA paquete. Es la definicion
+          # del pipeline, no una lista de paquetes: incorporar un paquete no
+          # obliga a tocar esta linea.
+          SCRIPTS: "typecheck test build"
+          # Estas EXCEPCIONES viajan SOLO SI la forma reparte el paquete E2E:
+          # nombrar una carpeta que el proyecto no tiene falla por excepcion
+          # muerta, que es rojo igual que la que falta.
+          # Las EXCEPCIONES, "<carpeta>:<script>", con su motivo escrito. La
+          # carpeta es la del paquete relativa a la raiz del repo.
+          #   e2e:test  -> la suite corre con navegadores contra un
+          #     ambiente YA DESPLEGADO, y este proyecto no tiene ninguno contra
+          #     el cual correrla. Medido el 2026-08-31 generando las dos formas
+          #     con projects-init: la forma "aplicacion" —la unica que recibe el
+          #     paquete E2E— recibe actualizar-marco.yml, ci.yml y claude.yml, y
+          #     ninguno de ellos publica nada en ningun lado. Esa enumeracion no
+          #     lleva un numero escrito al lado a proposito: un numero envejece
+          #     en silencio y la lista no, porque un banco la exige COMPLETA.
+          #     ESTE MOTIVO DECIA OTRA COSA, y era falso: mandaba la suite a una
+          #     corrida de promocion que no es ningun archivo de este andamio ni
+          #     de ninguna de sus dos formas. Una excepcion justificada por una
+          #     pieza que no existe no se cae nunca —el motivo suena razonable y
+          #     nadie va a abrir la carpeta a comprobarlo—, y el motivo escrito
+          #     al lado de una excepcion es lo unico que impide que la excepcion
+          #     sobreviva a lo que la justificaba.
+          #   e2e:build -> una suite de pruebas no produce
+          #     artefacto que servir.
+          # Es la unica lista del paso, y solo puede equivocarse hacia el
+          # rojo: si falta una excepcion, el CI falla pidiendo el script; si
+          # sobra, falla por excepcion muerta. Olvidarse de algo aca nunca
+          # produce un verde falso. Si el proyecto no tiene suite E2E, borra
+          # las dos entradas.
+          EXCEPCIONES: "e2e:test e2e:build"
+        run: |
+          set -euo pipefail
+
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/paquetes.json"
+
+          cat > "${RUNNER_TEMP}/verificar-scripts.mjs" <<'FIN'
+          // Comprueba que cada paquete del workspace DECLARE los scripts que
+          // el CI corre, y escribe el plan de ejecucion. La comprobacion se
+          // hace sobre los manifiestos, no sobre el codigo de salida del
+          // gestor de paquetes, que ya demostro cambiar entre versiones mayor.
+          //
+          // No hay salida en verde sin datos: sin paquetes, sin scripts o con
+          // el plan vacio, esto sale 1.
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { relative } from "node:path";
+
+          const [, , rutaProyectos, rutaPlan] = process.argv;
+          const raiz = process.cwd();
+          const lista = (v) => (v || "").trim().split(/\s+/).filter(Boolean);
+          const scripts = lista(process.env.SCRIPTS);
+          const excepciones = lista(process.env.EXCEPCIONES);
+
+          let hayFallo = false;
+          // El mensaje de una anotacion es de UNA linea: el detalle va suelto
+          // arriba y la anotacion se queda con el arreglo, que es lo que hay
+          // que leer.
+          const problema = (mensaje, detalle = []) => {
+            for (const linea of detalle) console.log(`  ${linea}`);
+            console.log(`::error::${mensaje}`);
+            hayFallo = true;
+          };
+
+          // La raiz del workspace queda fuera: sus scripts son agregadores del
+          // monorepo, no la verificacion de un paquete (pnpm -r tampoco la
+          // incluye). Se la reconoce porque su ruta relativa es vacia.
+          const paquetes = JSON.parse(readFileSync(rutaProyectos, "utf8"))
+            .map((p) => relative(raiz, p.path).split("\\").join("/"))
+            .filter((dir) => dir !== "")
+            .sort();
+
+          if (paquetes.length === 0) {
+            problema(
+              "pnpm no reporto ningun paquete ademas de la raiz: no se verifico nada, y eso no pasa en verde. Arreglo: si es un monorepo, revisa pnpm-workspace.yaml; si el repo es de un solo paquete, corre sus scripts directamente en este job y borra estos dos pasos",
+            );
+          }
+          if (scripts.length === 0) {
+            problema("SCRIPTS quedo vacio: no hay nada que verificar. Arreglo: declara los scripts en el env de este paso");
+          }
+
+          const malFormadas = excepciones.filter((e) => !/^[^:]+:[^:]+$/.test(e));
+          if (malFormadas.length > 0) {
+            problema(
+              `hay excepciones mal escritas: ${malFormadas.join(", ")}. Arreglo: el formato es "<carpeta>:<script>", separadas por espacios`,
+            );
+          }
+
+          const muertas = excepciones
+            .filter((e) => /^[^:]+:[^:]+$/.test(e))
+            .filter((e) => !paquetes.includes(e.split(":")[0]));
+          if (muertas.length > 0) {
+            problema(
+              `estas excepciones no corresponden a ningun paquete del workspace: ${muertas.join(", ")}. Arreglo: borralas de EXCEPCIONES, o corregi la carpeta. Una excepcion que sobrevive a lo que la justificaba tapa un agujero que ya nadie ve`,
+            );
+          }
+
+          const plan = [];
+          const faltantes = [];
+          for (const script of scripts) {
+            for (const dir of paquetes) {
+              if (excepciones.includes(`${dir}:${script}`)) continue;
+              const manifiesto = JSON.parse(readFileSync(`${dir}/package.json`, "utf8"));
+              if (manifiesto.scripts && manifiesto.scripts[script]) plan.push(`${dir}:${script}`);
+              else faltantes.push(`${dir}:${script}`);
+            }
+          }
+
+          if (faltantes.length > 0) {
+            problema(
+              'hay paquetes que no declaran un script que este CI exige (detalle arriba). Arreglo: agregalo a "scripts" de ese package.json; si de verdad no corresponde, escribi la excepcion con su motivo en EXCEPCIONES de .github/workflows/ci.yml',
+              faltantes.map((f) => `${f.split(":")[0]}/package.json -> falta el script "${f.split(":")[1]}"`),
+            );
+          }
+
+          if (!hayFallo && plan.length === 0) {
+            problema(
+              "el plan quedo vacio: ningun paquete correria ninguna verificacion. Arreglo: revisa SCRIPTS y EXCEPCIONES, porque tal como estan el paso siguiente no verifica nada",
+            );
+          }
+
+          if (hayFallo) process.exit(1);
+
+          writeFileSync(rutaPlan, `${plan.join("\n")}\n`);
+          console.log(`paquetes del workspace (${paquetes.length}): ${paquetes.join(", ")}`);
+          for (const e of excepciones) console.log(`excepcion declarada y vigente: ${e}`);
+          console.log(`plan: ${plan.length} verificaciones -> ${plan.join(", ")}`);
+          FIN
+
+          node "${RUNNER_TEMP}/verificar-scripts.mjs" \
+            "${RUNNER_TEMP}/paquetes.json" "${RUNNER_TEMP}/plan-verificacion.txt"
+
+      # Se corre parado DENTRO de cada paquete a proposito: ahi `pnpm run
+      # <script>` SI falla cuando el script no existe (ERR_PNPM_NO_SCRIPT,
+      # salida 1), tanto en 9.15 como en 11.18. Es la red de seguridad del
+      # paso anterior, no su reemplazo. El plan viene ordenado por script, asi
+      # que la senal mas barata (typecheck de todos) llega antes que la mas
+      # cara (build).
+      - name: Verificar cada paquete
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r PAR; do
+            [ -n "${PAR}" ] || continue
+            DIR="${PAR%%:*}"
+            SCRIPT="${PAR##*:}"
+            echo "::group::${DIR}: pnpm run ${SCRIPT}"
+            if ! ( cd "${DIR}" && pnpm run "${SCRIPT}" ); then
+              echo "::endgroup::"
+              echo "::error::fallo '${SCRIPT}' en el paquete '${DIR}'. Reproducilo local con: cd ${DIR} && pnpm run ${SCRIPT}"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done < "${RUNNER_TEMP}/plan-verificacion.txt"
+
+      # -------------------------------------------------------------------
+      # LAS DOS VERIFICACIONES QUE EL MARCO PROVEE COMO ACTIONS
+      #
+      # Van DESPUES de la verificacion por paquete a proposito: ambas
+      # interrogan al toolchain ya instalado y, en el caso de la cobertura,
+      # consumen los reportes que las pruebas acaban de emitir. Antes de ese
+      # punto no habria nada que leer.
+      #
+      # No se pueden borrar sin que el marco lo note: el job de marco
+      # comprueba estaticamente que este workflow invoque el censo, y si no
+      # lo encuentra da rojo con el paso listo para pegar. Un guardrail que
+      # se puede sacar en silencio no es un guardrail.
+      # -------------------------------------------------------------------
+
+      # Ningun archivo fuente versionado queda invisible para las
+      # herramientas. Un archivo que no mira ni el analizador ni el
+      # compilador no tiene lint ni tipos, y sus errores llegan a produccion
+      # sin poner nada en rojo. El alcance se DERIVA de las herramientas
+      # configuradas, asi que un paquete o un directorio nuevo entra solo:
+      # no hay lista que nadie tenga que acordarse de actualizar.
+      #
+      # Si un archivo queda fuera a proposito, se declara en el package.json
+      # de SU paquete, bajo projects.cobertura.excluidos, con su motivo escrito.
+      # La exclusion no vuelve imposible la evasion: la vuelve visible, en un
+      # diff, bajo review.
+      - uses: "im-diego-ec/Projects/actions/censo-fuentes@v1.8.0"
+
+      # Cobertura en los DOS planos, en un solo paso, porque los dos leen los
+      # mismos lcov y los mismos manifiestos:
+      #
+      #   1. Las lineas que el cambio agrega o modifica, sin holgura: codigo
+      #      nuevo sin pruebas es rojo aunque el paquete tenga margen de sobra.
+      #      No aplica en un push a main —ahi no hay rango— y lo dice en vez de
+      #      simular un 100%. Si no encuentra reportes habiendo lineas
+      #      agregadas es ROJO: "sin datos" no es "todo cubierto".
+      #
+      #   2. El TOTAL de cada paquete contra el minimo del marco, que corre
+      #      SIEMPRE, tambien en un push a main. Un paquete por debajo del
+      #      minimo sin motivo ni fecha declarados es ROJO; con la fecha
+      #      vencida, ROJO; con la fecha vigente, AMARILLO, y la corrida
+      #      reporta cuanto falta y cuanto plazo queda. Bajar el umbral de este
+      #      paso NO abre esa compuerta: sobre el total, el 80 del marco es
+      #      piso duro y el umbral local solo puede subirlo.
+      #
+      #      Este plano se estrena con VENTANA DE GRACIA hasta el 2026-09-30:
+      #      hasta ese dia, un paquete por debajo del minimo SIN declaracion
+      #      avisa en vez de detener, y la corrida grita la fecha. Despues es
+      #      rojo sin que nadie toque nada. Si este repo ya tiene un paquete en
+      #      deuda, ese es el plazo real para subirlo o declararla.
+      #
+      # El piso es TRANSICION, no destino, y por eso lleva plazo: sin plazo
+      # escrito el piso termina siendo el minimo de hecho. Paso de verdad,
+      # medido en verde a 70,69% de funciones contra un minimo declarado de 80.
+      # Ver el requirement de cobertura del spec calidad-codigo.
+      #
+      # Para que el plano del total vea el codigo que ninguna prueba importa,
+      # la cobertura de cada paquete tiene que abarcar TODO el fuente del paquete
+      # (no solo lo que alguna prueba importo) y emitirse con el projectRoot del
+      # reporter lcov en la raiz del monorepo. Las dos cosas vienen armadas en
+      # `vitest.config.base.mjs` de la raiz: lo primero es su `include` — la
+      # opcion `all` que lo pedia en vitest 2.x ya no existe.
+      - uses: "im-diego-ec/Projects/actions/cobertura-diff@v1.8.0"
+
+  # EL CHECK REQUERIDO POR EL RULESET DE main ES ESTE (nombre exacto: "ci-ok").
+  #
+  # No puede ser build-test: en el carril de docs queda "skipped" y un check
+  # omitido NO REPORTA NUNCA, asi que el ruleset se queda esperando para siempre
+  # una senal que no va a llegar. El sintoma es dificil de diagnosticar porque no
+  # se parece a un fallo: un PR de solo documentacion que no se puede mergear y
+  # ningun check en rojo que explique por que. ci-ok reporta en AMBOS carriles
+  # gracias a if: always().
+  ci_ok:
+    name: ci-ok
+    needs: [marco, constitucion, build_test]
+    if: always()
+    # 5 minutos: no hace checkout ni toca la red, solo lee los resultados de sus
+    # needs, que vienen del contexto.
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    # VACIO A PROPOSITO: este job no clona el arbol, no llama a ninguna API y no
+    # lee mas que los resultados de sus needs, que vienen del contexto y no del
+    # token. Su GITHUB_TOKEN no necesita ni contents: read. Es el caso extremo de
+    # la misma regla que cumplen los otros jobs, y por eso vale la pena que este
+    # escrito: un bloque vacio dice "se audito y da cero", que no es lo mismo que
+    # no haber mirado.
+    permissions: {}
+    steps:
+      - name: Veredicto
+        shell: bash
+        run: |
+          [ "${{ needs.marco.result }}" = "success" ] || { echo "::error::el CI de marco fallo"; exit 1; }
+          # La constitucion no tiene carril rapido: corre en los dos, asi que
+          # cualquier resultado que no sea success es un fallo. Un "skipped" aca
+          # significaria que alguien le puso un if, y eso es apagarla.
+          [ "${{ needs.constitucion.result }}" = "success" ] || { echo "::error::la verificacion de la constitucion del marco termino en '${{ needs.constitucion.result }}'"; exit 1; }
+          if [ "${{ needs.build_test.result }}" = "success" ]; then exit 0; fi
+          if [ "${{ needs.build_test.result }}" = "skipped" ] && [ "${{ needs.marco.outputs.solo_docs }}" = "true" ]; then
+            echo "solo docs: build-test omitido a proposito"; exit 0
+          fi
+          echo "::error::build-test termino en '${{ needs.build_test.result }}'"; exit 1

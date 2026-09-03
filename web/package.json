@@ -1,0 +1,46 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run --coverage",
+    "lint": "eslint . --max-warnings=0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "jsdom": "^30.0.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  },
+  "projects": {
+    "cobertura": {
+      "excluidos": [
+        {
+          "patron": "vite.config.ts",
+          "motivo": "Configuracion de la herramienta de build y del runner de pruebas: la ejecutan vite y vitest al arrancar, ninguna suite la importa y el ignore global del linter del marco (**/*.config.ts) tampoco la mira. Si algun dia hay que verificarla, la salida NO es borrar esta linea sino darle un programa de tipos propio para el lado Node del paquete y sacarla del ignore del linter, en el mismo cambio."
+        },
+        {
+          "patron": "src/main.tsx",
+          "motivo": "Entrypoint del navegador: monta el arbol en #root y NADA MAS. Se puede excluir con la conciencia tranquila porque no decide nada: la unica decision del arranque (con las variables de Supabase se arma el proveedor de identidad, sin ellas la app corre sin auth) se mudo a src/Raiz.tsx, que si tiene prueba. Si alguna vez vuelve logica a este archivo, la exclusion deja de ser honesta y hay que sacarla."
+        }
+      ]
+    }
+  }
+}

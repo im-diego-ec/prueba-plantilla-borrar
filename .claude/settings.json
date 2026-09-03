@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 new change *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 validate *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 list)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 list *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 status *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 show *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 instructions *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 context *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 schemas *)",
+      "Bash(npx --yes @fission-ai/openspec@1.9.0 store *)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm --filter api lint)",
+      "Bash(pnpm --filter api typecheck)",
+      "Bash(pnpm --filter api test *)",
+      "Bash(pnpm --filter api build)",
+      "Bash(pnpm --filter web lint)",
+      "Bash(pnpm --filter web typecheck)",
+      "Bash(pnpm --filter web test *)",
+      "Bash(pnpm --filter web build)",
+      "Bash(git fetch *)",
+      "Bash(gh run watch *)",
+      "mcp__00000000-0000-0000-0000-000000000000__slack_read_channel",
+      "mcp__00000000-0000-0000-0000-000000000000__slack_read_thread",
+      "mcp__00000000-0000-0000-0000-000000000000__slack_search_users",
+      "mcp__00000000-0000-0000-0000-000000000000__slack_search_channels",
+      "mcp__00000000-0000-0000-0000-000000000000__slack_read_file"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  // Programa de tipos del frontend. Hereda la base del monorepo (strict no se
+  // negocia: las reglas type-checked del linter dependen de que el compilador
+  // tenga informacion real de tipos).
+  //
+  // El alcance es src, y eso incluye los *.test.tsx: una prueba que no
+  // typechequea es una prueba que puede estar afirmando cualquier cosa. Los
+  // archivos de configuracion del paquete (vite/tailwind/postcss) quedan FUERA
+  // de este programa a proposito, y por eso estan declarados con su motivo en
+  // projects.cobertura.excluidos de package.json — que es lo que el censo de
+  // fuentes del marco lee para no darlos por invisibles en silencio.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    // vite/client trae los tipos de import.meta.env; las variables VITE_* de
+    // este proyecto se declaran en src/vite-env.d.ts.
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

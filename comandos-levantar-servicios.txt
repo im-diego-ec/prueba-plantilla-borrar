@@ -1,0 +1,137 @@
+COMANDOS PARA LEVANTAR LOS SERVICIOS - mi-proyecto
+============================================================
+
+POR QUE EXISTE ESTE ARCHIVO. El arranque local es de una sola vez y se olvida:
+tres pasos que nadie repite lo suficiente para acordarse, y sin ellos el repo
+recien creado no levanta y parece roto. Es una lista de comandos a proposito de
+que se pueda copiar y pegar, no documentacion de arquitectura (eso vive en
+AGENTS.md y en openspec/).
+
+LOS COMANDOS QUE CAMBIAN SEGUN EL SISTEMA VAN EN DOS BLOQUES ROTULADOS, y no es
+cosmetica. Una lista escrita para un solo sistema no falla al final: falla en el
+primer comando que en la otra plataforma no existe, y el mensaje que sale habla
+del comando que falta ("command not found"), nunca de la plataforma. El lector
+concluye que el repo esta roto, que es justo lo contrario de lo que este archivo
+existe para evitar. Los comandos identicos en las dos —que son la mayoria— van
+UNA sola vez y sin rotulo: duplicar lo que no difiere agrega mantenimiento y
+esconde lo que si.
+
+
+LO UNICO QUE TENES QUE TENER INSTALADO ANTES. Node (que trae corepack) y DOCKER
+DESKTOP. Docker es el que levanta la base de datos: sin el, el paso 2 de abajo
+contesta "command not found: docker" y nada mas. Se baja gratis para uso personal
+de https://www.docker.com/products/docker-desktop/ y la descarga es grande, asi
+que conviene arrancarla antes de sentarse a esto.
+
+Este archivo advierte de esta trampa en el parrafo de arriba y hasta hoy no decia
+donde conseguirlo: el lector se quedaba con el "command not found" y sin salida.
+
+
+PRIMERA VEZ EN ESTA MAQUINA (una sola vez por clon)
+------------------------------------------------------------
+
+0. Instalar dependencias. Esto es lo que CREA pnpm-lock.yaml, que el andamio no
+   trae a proposito: un lockfile fija versiones exactas y no puede convivir con
+   los marcadores del andamio. Sale de aca, y desde el primer commit se
+   versiona (el CI corre `pnpm install --frozen-lockfile` y sin lockfile falla).
+
+pnpm install
+
+1. Copiar los dos archivos de entorno de ejemplo y llenarlos. Las claves de
+   Supabase son opcionales en local y obligatorias en los ambientes reales; las
+   de dev salen del proyecto dev de Supabase, que es SEPARADO y solo tiene
+   usuarios de prueba.
+
+   [macOS / Linux / Git Bash]
+cp api/.env.example api/.env
+cp web/.env.example web/.env
+
+   [Windows PowerShell]
+Copy-Item api/.env.example api/.env
+Copy-Item web/.env.example web/.env
+
+2. Levantar la base y aplicar las migraciones. La base local vive en Docker
+   (docker-compose.yml) y arranca vacia: sin este paso, el primer request que
+   toque datos falla contra tablas que no existen.
+
+docker compose up -d
+pnpm -C api run prisma:migrate
+
+   OJO: prisma:migrate SI necesita DATABASE_URL (sale de api/.env, paso 1).
+   `prisma generate` no la necesita y por eso el CI puede generar el cliente
+   sin base — esta explicado en api/prisma.config.ts.
+
+3. Navegadores de la suite E2E, solo si vas a correrla en esta maquina. Es una
+   descarga grande y separada del `pnpm install`: el paquete e2e/ trae el
+   runner, no los navegadores.
+
+pnpm -C e2e exec playwright install
+
+
+CADA DIA
+------------------------------------------------------------
+
+1. Si Docker Desktop no esta abierto, abrilo y espera a que el icono de la
+   bandeja del sistema quede estable.
+
+2. Abri una terminal y ejecuta, en orden. Solo la primera linea cambia segun el
+   sistema; las otras dos son las mismas:
+
+   [macOS / Linux / Git Bash]
+cd "<la ruta local de tu clon de mi-proyecto>"
+
+   [Windows PowerShell]
+Set-Location "<la ruta local de tu clon de mi-proyecto>"
+
+docker compose up -d
+pnpm dev
+
+Notas:
+- "docker compose up -d" levanta PostgreSQL (si ya esta corriendo, no hace nada).
+- "pnpm dev" levanta API (http://localhost:3000) y Web (http://localhost:5173).
+- Esa terminal debe quedar abierta mientras trabajas: "pnpm dev" no vuelve al
+  prompt, se queda corriendo los dos servicios.
+- Para verificar que todo responde:
+  curl http://localhost:3000/api/health
+  curl http://localhost:5173
+
+
+ANTES DE CADA PUSH (no es opcional)
+------------------------------------------------------------
+
+pnpm verificar
+
+Corre lo mismo que el CI y en el mismo orden: lint y formato una vez desde la
+raiz sobre todo el arbol, y despues typecheck, test y build en cada paquete. El
+CI es la corrida final, no el banco de pruebas.
+
+Si te interesa una sola parte:
+
+pnpm lint
+pnpm format:check      (y "pnpm format" para que lo arregle solo)
+pnpm typecheck
+pnpm test
+pnpm build
+
+Lo que "pnpm verificar" NO cubre, y donde vive cada cosa:
+
+- La cobertura por paquete y la del diff, y el censo de fuentes: los mide el CI
+  con las actions del marco. NO son inverificables en una laptop —son scripts de
+  Node sin dependencias— pero necesitan un clon del marco a mano. Con uno:
+      node <clon-del-marco>/actions/censo-fuentes/censo-fuentes.mjs
+      node <clon-del-marco>/actions/cobertura-diff/medir-cobertura-diff.mjs
+  El segundo lee los lcov que "pnpm test" acaba de dejar en cada paquete, asi
+  que corre DESPUES de las pruebas o no encuentra nada que medir.
+
+- La suite E2E, que corre con navegadores contra un ambiente ya desplegado y
+  vive en el workflow de promocion (por eso ci.yml declara e2e:test y e2e:build
+  como excepciones). A mano, con el ambiente ya arriba, la URL viaja como
+  variable de entorno y ahi la sintaxis SI cambia — un prefijo VAR=valor delante
+  del comando es sintaxis de shell POSIX y PowerShell lo rechaza como error de
+  parseo, no como comando desconocido:
+
+   [macOS / Linux / Git Bash]
+E2E_BASE_URL=https://... pnpm e2e
+
+   [Windows PowerShell]
+$env:E2E_BASE_URL='https://...'; pnpm e2e

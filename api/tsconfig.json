@@ -1,0 +1,18 @@
+{
+  // Extiende la base del monorepo y agrega SOLO lo del backend. `strict` no se
+  // negocia: viene de la base y las reglas type-checked del linter dependen de
+  // que el compilador tenga informacion real de tipos.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  // Solo src: prisma.config.ts y vitest.config.ts los ejecutan sus propias
+  // herramientas y quedan fuera del programa a proposito (van declarados en
+  // projects.cobertura.excluidos del package.json, con su motivo). Si manana entra
+  // un scripts/ que importe de src/, se agrega ACA y no en un tsconfig aparte:
+  // chequear los dos lados de esa frontera en el mismo programa es lo que
+  // convierte un cambio de firma en un rojo del typecheck y no en un fallo de
+  // deploy.
+  "include": ["src"]
+}

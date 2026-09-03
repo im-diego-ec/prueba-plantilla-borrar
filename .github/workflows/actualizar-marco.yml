@@ -1,0 +1,246 @@
+name: Actualizar el marco
+
+# ---------------------------------------------------------------------------
+# Propone al dia la porcion del marco de la constitucion de este repositorio: corre
+# la action del marco en modo escribir y abre un PR con el artefacto regenerado.
+#
+# POR QUE EXISTE. El resto del marco llega por referencia, y desde la 1.4.0 por
+# VERSION EXACTA: el bump lo propone Dependabot como PR. La constitucion no
+# puede funcionar asi —es texto que los agentes CARGAN, y tiene que estar en el
+# arbol de este repo—, asi que el camino normal seria "acordate de regenerarla
+# cuando el marco publique". Un ritual que alguien debe recordar no cuenta como
+# enforcement: por eso existe este archivo.
+#
+# LO QUE HOY NO HACE, medido y no deducido: NO mueve el pin, y sin mover el pin
+# no puede traer una version nueva. Corre la action de la version que este repo
+# YA tiene pinada, y el canonico viaja DENTRO de esa action — asi que en modo
+# escribir regenera el artefacto de la version que ya estaba. Medido el
+# 2026-08-22 con el pin en 1.4.1: salida «version 1.3.0, sha 22b7d8ee231f»,
+# byte por byte identica, sin cambios y sin PR. Para su propio caso de uso
+# —"el marco publico, traeme la constitucion al dia"— es un no-op.
+#
+# El resultado es un bloqueo circular: el PR de bump de Dependabot nace ROJO
+# (pin nuevo, artefacto viejo), este workflow corre el pin VIEJO y por eso no
+# puede ayudar, y el artefacto solo se regenera con el pin nuevo — que vive
+# dentro del PR rojo. Mientras se cierre a mano, el arreglo es bajar el artifact
+# `constitucion-al-dia` que sube el job de marco del ci.yml y commitearlo sobre
+# el PR del bump.
+#
+# LA SALIDA ESTA DECIDIDA Y NO IMPLEMENTADA: **Projects ADR 005** — este mismo
+# workflow mueve el pin Y regenera, y abre UN PR que nace verde. Se construye
+# cuando exista el segundo consumidor del marco. Hasta entonces este parrafo es
+# la advertencia, no la promesa.
+#
+#
+# EL CHECK ES OTRA COSA, Y LLEGA POR OTRO CARRIL. Que el artefacto exista,
+# este al dia y siga cargado lo verifica el job de marco del ci.yml (llega por
+# uses: ...@<version>, con el bump por PR). Este workflow no verifica: solo
+# propone el arreglo. Borrarlo no deja el repo sin control — deja el repo
+# esperando que alguien regenere a mano hasta que el check pase de aviso a
+# rojo.
+#
+# NO ES PARTE DEL PIPELINE: no reporta ningun check y no gatea ningun merge.
+# El unico check requerido sigue siendo el veredicto agregado (ci-ok).
+#
+# ES SCAFFOLD, no referenciado, y la asimetria hay que decirla: un workflow
+# que escribe en ESTE repo tiene que vivir en ESTE repo, con el token de este
+# repo. El marco jamas escribe en el repositorio de un proyecto.
+#
+# DOS LIMITES DE GITHUB QUE HAY QUE CONOCER ANTES DE MERGEAR EL PRIMER PR:
+#
+#   1. Un PR abierto con el GITHUB_TOKEN NO dispara los workflows de
+#      pull_request, asi que nace SIN checks — y si el ruleset exige ci-ok, no
+#      se puede mergear hasta que alguien lo destrabe (cerrar y reabrir el PR,
+#      o empujarle un commit). Para que nazca con CI hace falta un token
+#      propio: se carga como secret TOKEN_ACTUALIZAR_MARCO (una GitHub App de
+#      la organizacion o un PAT de alcance minimo). Sin ese secret el workflow
+#      funciona igual, y AVISA en cada corrida en vez de dejar la sorpresa
+#      para el dia del merge.
+#   2. El commit lo firma quien lo hace, y un bot con el GITHUB_TOKEN no
+#      firma. Si el ruleset de main exige firmas verificadas, este PR se
+#      mergea con SQUASH —el commit resultante lo firma GitHub— o se rehace el
+#      commit a mano. Es una limitacion declarada, no un descuido.
+#
+# HABILITAR EN LA ORGANIZACION (acto humano, una vez): Settings > Actions >
+# General > "Allow GitHub Actions to create and approve pull requests". Sin
+# eso el paso del PR falla en rojo con un 403 que no menciona esta linea por
+# ningun lado.
+#
+# CONTRATO QUE USA ESTE ARCHIVO, para que un cambio del marco no lo deje roto
+# en silencio: la action im-diego-ec/Projects/actions/constitucion, pinada arriba a la
+# version exacta del marco, con
+# "modo: escribir" lee .projects-valores.json y .projects-desvios.json de la raiz y
+# escribe el artefacto de cada superficie que ese archivo declara. Escribe en
+# el arbol de trabajo y NADA MAS: no commitea, no pushea y no abre PRs — eso
+# lo hace el ultimo paso de aca, con el token de este repo. El catalogo
+# completo de sus inputs vive en el encabezado de esa action.
+#
+# Necesita node en el PATH: por eso el setup-node de mas abajo esta ANTES de
+# la action y no es decorativo.
+# ---------------------------------------------------------------------------
+
+on:
+  # Semanal, el mismo dia que llegan los PRs de dependencias: el lunes es el
+  # dia de mirar lo que entro solo. El evento que de verdad importa NO es el
+  # calendario sino "el marco publico una version": el cron es la aproximacion
+  # barata mientras no exista el aviso de publicacion (fila 14 del backlog de
+  # reglas no escritas del marco).
+  schedule:
+    - cron: "17 12 * * 1"
+  # Para el bootstrap del repo y para adoptar una version sin esperar al lunes.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dos corridas a la vez se pisarian la rama del PR. Se hace cola, no se
+# cancela: la que ya empezo termina.
+concurrency:
+  group: actualizar-marco
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # PERMISOS, auditados accion por accion:
+    #   contents: write        crear la rama y empujar el commit del artefacto.
+    #   pull-requests: write   abrir el PR (y leer si ya hay uno abierto).
+    # Nada mas. Este workflow no toca issues, no publica releases y no lee
+    # secretos de ambiente. Y no puede tocar main: la proteccion de main solo
+    # deja avanzar por PR revisado.
+    permissions:
+      contents: write
+      pull-requests: write
+
+    # EN EL ENV DEL JOB SOLO VIVE LO QUE NO ES UNA CREDENCIAL. El env de un job
+    # lo heredan TODOS sus pasos, y entre los pasos de aca abajo hay un `uses:`
+    # que trae codigo por referencia y se resuelve en cada corrida. Lo que se
+    # cuelga de este bloque queda expuesto a ese codigo, asi que el criterio es
+    # simple: un booleano si, el token no. El PAT vive en el env del UNICO paso
+    # que lo usa, mas abajo.
+    env:
+      RAMA: chore/marco-al-dia
+      # El contexto secrets no se puede leer desde un if de paso, pero si
+      # desde env. De aca lo toma el primer paso. Lo que viaja es el RESULTADO
+      # de la comparacion —"hay secret o no"—, no el secreto: un booleano no le
+      # sirve de nada a quien lo lea.
+      TOKEN_PROPIO: ${{ secrets.TOKEN_ACTUALIZAR_MARCO != '' }}
+
+    steps:
+      # AVISO y no rojo, a proposito: sin el token propio el mecanismo
+      # funciona, solo queda un paso manual antes del merge. Un permiso o una
+      # comodidad que falta es friccion; el rojo se reserva para lo que esta
+      # roto. Lo que no se hace es callarse: un fail-open silencioso es
+      # indistinguible de que la funcion no exista.
+      - name: Avisar si el PR va a nacer sin checks
+        if: env.TOKEN_PROPIO != 'true'
+        shell: bash
+        run: |
+          echo "::warning::no hay secret TOKEN_ACTUALIZAR_MARCO en este repo: el PR se va a abrir con el GITHUB_TOKEN y GitHub no dispara los workflows de pull_request para esos PRs, asi que va a nacer sin checks. Para mergearlo: cerralo y reabrilo desde la interfaz (eso si los dispara), o empujale un commit. Para que nazca con CI, carga el secret con un token propio de alcance minimo"
+
+      - name: Checkout del repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      # Esta comprobacion es la que hace legitimo el "git add -A" de mas
+      # abajo: si el arbol arranca limpio, todo lo que aparezca despues lo
+      # escribio la action y nada mas. Sin esto, cualquier basura del checkout
+      # entraria al commit del artefacto sin que nadie la haya mirado.
+      - name: El arbol arranca limpio
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUCIO="$(git status --porcelain --untracked-files=all)"
+          if [ -n "${SUCIO}" ]; then
+            echo "${SUCIO}"
+            echo "::error::el arbol quedo sucio recien clonado (detalle arriba), asi que no se puede distinguir lo que escribe el marco de lo que ya estaba. Causa mas probable: fin de linea. Revisa que .gitattributes tenga '* text=auto eol=lf'"
+            exit 1
+          fi
+          echo "arbol limpio: lo que aparezca de aca en adelante lo escribio la action del marco"
+
+      # LA MISMA MAYOR QUE EL RESTO DEL ANDAMIO (hoy la LTS 24): el `node-version`
+      # de los dos jobs de ci.yml y el FROM de api/Dockerfile. Son cuatro
+      # declaraciones de UNA sola decision y se mueven en el MISMO commit —
+      # dejarlas divergentes hace que un workflow corra en una mayor que ningun
+      # otro ejercita, y ahi el rojo aparece donde nadie lo estaba mirando.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+
+      - name: Regenerar la porcion del marco
+        uses: "im-diego-ec/Projects/actions/constitucion@v1.8.0"
+        with:
+          modo: escribir
+
+      # EL UNICO PASO QUE VE EL TOKEN, y es deliberado que sea el ultimo y el
+      # mas chico con logica propia. TOKEN_ACTUALIZAR_MARCO es un PAT con
+      # ESCRITURA sobre este repositorio: cuanto mas arriba se declare, mas
+      # codigo lo ve sin necesitarlo. Ningun otro paso de este job llama a la
+      # API de GitHub — el checkout trae su propia credencial, la action del
+      # marco solo escribe archivos en el arbol— asi que el alcance correcto es
+      # exactamente este bloque.
+      #
+      # Sin el secret propio cae al GITHUB_TOKEN del job: el mecanismo funciona
+      # igual y el primer paso ya aviso que el PR va a nacer sin checks.
+      - name: Abrir o actualizar el PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_ACTUALIZAR_MARCO || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          CAMBIOS="$(git status --porcelain --untracked-files=all)"
+          if [ -z "${CAMBIOS}" ]; then
+            echo "::notice::la porcion del marco ya esta al dia: no hay nada que proponer"
+            exit 0
+          fi
+
+          echo "cambios que se van a proponer:"
+          echo "${CAMBIOS}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${RAMA}"
+          git add -A
+          git commit -m "chore(marco): traer al dia la porcion del marco de la constitucion"
+
+          # --force a proposito: si quedo una rama de una corrida anterior con
+          # su PR abierto, este empuje la reemplaza por el artefacto de HOY. Es
+          # una rama de bot y su unica fuente de verdad es el marco; nadie
+          # commitea encima.
+          git push --force origin "HEAD:refs/heads/${RAMA}"
+
+          ABIERTO="$(gh pr list --head "${RAMA}" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "${ABIERTO}" ]; then
+            echo "::notice::el PR #${ABIERTO} ya estaba abierto para ${RAMA} y quedo actualizado con el artefacto de hoy"
+            exit 0
+          fi
+
+          cat > "${RUNNER_TEMP}/cuerpo-pr.md" <<'FIN'
+          La porcion del marco de la constitucion de este repo quedo atrasada. Este
+          PR la trae al dia.
+
+          **Que revisar.** El contenido de este diff no se edita: es texto que
+          publica el marco, renderizado con los valores de `.projects-valores.json`.
+          Lo que si vale revisar es **que dicen las reglas nuevas** y si alguna
+          choca con como trabaja este proyecto. Si choca, el arreglo no es editar
+          el artefacto —el CI lo detecta como edicion a mano— sino declarar el
+          desvio en `.projects-desvios.json`, con la regla que anula, quien lo
+          aprobo y el motivo escrito.
+
+          **Este PR no cierra ningun issue.** No es el PR de un bloque de trabajo:
+          lo abre el workflow `actualizar-marco.yml`, que corre semanalmente. Por
+          eso no lleva `Closes`.
+
+          Si nacio sin checks, es el limite conocido de los PRs abiertos con el
+          `GITHUB_TOKEN`: cerralo y reabrilo para que el CI corra.
+          FIN
+
+          gh pr create \
+            --head "${RAMA}" \
+            --title "chore(marco): traer al dia la porcion del marco de la constitucion" \
+            --body-file "${RUNNER_TEMP}/cuerpo-pr.md"

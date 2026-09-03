@@ -1,0 +1,108 @@
+# Dependencias y artefactos de build
+node_modules
+dist
+build
+*.tsbuildinfo
+coverage
+
+# LO QUE GENERA ASTRO AL COMPILAR. `astro build` escribe `<paquete>/.astro/` con
+# los tipos de las colecciones de contenido. Son de la herramienta, no del
+# proyecto, y se regeneran en cada compilacion.
+#
+# MEDIDO en un sitio recien generado: sin esta linea, `pnpm verificar` sale 0 la
+# PRIMERA vez y 1 la SEGUNDA sin tocar una linea de codigo —seis errores de
+# eslint sobre archivos que la persona no escribio—, y el `git add -A` del Paso 9
+# de docs/04 los sube al primer commit, dejando el CI rojo. Es el mismo caso que
+# `coverage/`, que ya esta declarado abajo y en los ignores del linter.
+**/.astro/
+
+# LO QUE ESCRIBE PLAYWRIGHT CUANDO UNA PRUEBA FALLA. `e2e/test-results/` guarda
+# capturas, trazas y videos del intento fallido. Son de la herramienta y del
+# intento, no del proyecto.
+#
+# MEDIDO en una maquina sin navegadores instalados, que es el estado normal la
+# primera vez: `pnpm e2e` falla, deja el directorio escrito, y el `pnpm
+# verificar` SIGUIENTE sale rojo por archivos que la persona nunca escribio. El
+# `git add -A` del Paso 9 de docs/04 ademas los sube al primer commit. Es
+# exactamente el mismo caso que `coverage/` y que `**/.astro/`.
+**/test-results/
+
+# Entorno local y ruido del sistema.
+#
+# EL PATRON ES `.env.*`, NO UNA LISTA DE NOMBRES. Hasta el 2026-08-24 estas tres
+# lineas eran `.env`, `.env.local` y `.env.production`, y con eso `git
+# check-ignore` decia SE COMMITEA para `.env.development`, `.env.dev`,
+# `.env.test` y `.env.staging` — medido, los cuatro. Vite, Prisma y el resto del
+# ecosistema Node normalizan justo esos nombres, asi que quien separa las
+# credenciales de la instancia de dev en `api/.env.dev` lo ve limpio en `git
+# status` y lo commitea. Lo que hay adentro esta declarado en api/.env.example:
+# SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_JWT_SECRET. Una clave del proveedor
+# de identidad en la historia de git ya no se saca borrando el archivo.
+#
+# La negacion va DESPUES, y es la que mantiene versionados los .env.example de
+# api/ y web/. Es exactamente el par que el .dockerignore de este mismo andamio
+# ya usaba, con su «un .env dentro de una imagen es un secreto publicado»: eran
+# dos archivos hermanos que discrepaban, y el debil era el que decide que entra
+# a la historia, que es lo irreversible.
+#
+# ESTAS TRES LINEAS TIENEN GUARDA. pruebas/andamio/acoples-del-andamio.test.mjs
+# arma un repositorio vacio, le pone este mismo archivo y le PREGUNTA A GIT con
+# `git check-ignore` por trece nombres. Se pone rojo si vuelve la lista de
+# nombres literales, si alguien agrega un `!.env.dev` para desbloquear su
+# archivo, o si se pierde la negacion y los .env.example dejan de viajar.
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea
+
+# Terraform: estado, plan y tfvars NUNCA se versionan (llevan valores reales
+# y a veces secretos). El .terraform.lock.hcl SI se versiona: fija providers.
+infra/.terraform
+infra/*.tfstate*
+infra/*.tfvars
+infra/tfplan*
+infra-prod/.terraform
+infra-prod/*.tfstate*
+infra-prod/*.tfvars
+infra-prod/tfplan*
+
+# Claude Code: config por maquina y estado de runtime.
+# (.claude/settings.json SI se versiona: es el allowlist del equipo)
+# Sin estas reglas cada quien las repite en .git/info/exclude de su maquina;
+# aqui las hereda todo el equipo.
+**/.claude/settings.local.json
+**/.claude/scheduled_tasks.lock
+**/.claude/scheduled_tasks.json
+**/.claude/routines/.state/
+**/.claude/worktrees/
+**/.claude/checkpoints/
+**/.claude/mailbox/
+**/.claude/agent-registry.json
+**/.claude/agent-memory-local
+**/.claude/first-run
+**/.claude/assistant-daemon-state.json
+
+# RESIDUOS DE CORRER LOS CHECKS DEL MARCO EN LOCAL. En CI viven en RUNNER_TEMP;
+# en una maquina esa variable no esta seteada y caen en el directorio de trabajo.
+# Sin estas lineas, un `git add -A` despues de correr un check local commitea
+# basura: paso el 2026-08-21 con aviso-version.json, cuya prosa el detector de
+# secretos tokenizo como nombres de paquete.
+#
+# La lista se amplio el 2026-08-22 corriendo el job de higiene completo sobre un
+# repo recien nacido del andamio: "artefactos regenerados al dia" deja
+# declarados.txt y divergentes.txt, y el detector de secretos deja declarados.txt
+# tambien. Quedaban los dos SIN rastrear y visibles en git status, o sea a un
+# `git add -A` de entrar al repo. Medido, no supuesto.
+pendientes.txt
+aviso-version.json
+declarados.txt
+divergentes.txt
+
+# Lockfile espurio: en un workspace pnpm el unico lockfile valido es el de la
+# raiz. Uno dentro de un paquete lo genera un `pnpm install` corrido ahi y hace
+# que local y CI resuelvan dependencias distinto. Se ignora en cualquier nivel
+# y se reincorpora solo el de la raiz (el orden importa: la negacion va despues).
+**/pnpm-lock.yaml
+!/pnpm-lock.yaml
