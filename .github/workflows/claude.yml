@@ -218,7 +218,7 @@ jobs:
         #   curl -sS https://api.github.com/repos/anthropics/claude-code-action/git/tags/<sha-del-objeto-tag>
         # el object.sha del segundo llamado es el commit que va aca, y el campo
         # message dice la version exacta que va en el comentario.
-        uses: anthropics/claude-code-action@e2a4b761cd77a1138a5b41410eda9b28581f9bcd # v1.0.196
+        uses: anthropics/claude-code-action@fa2b2666b747000bf42767d1f332065b375e3c8f # v1.0.214
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
