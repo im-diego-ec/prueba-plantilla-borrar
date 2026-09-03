@@ -45,7 +45,7 @@
 # laptop de quien adopta el marco: es bajo a proposito y no sube con la LTS.
 # Subirlo con estos cuatro haria que la copia se niegue a correr en maquinas
 # donde copiar funciona perfectamente.
-FROM --platform=linux/amd64 node:24-slim
+FROM --platform=linux/amd64 node:26-slim
 WORKDIR /app
 
 # openssl: el motor de consultas de Prisma lo usa para detectar libssl; sin el
